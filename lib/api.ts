@@ -1,4 +1,4 @@
-import type { Job, Me, Repo } from './types';
+import type { Job, Me, Repo, ShareLink, SharedReport } from './types';
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -55,7 +55,13 @@ async function apiFetch<T>(
   }
 
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+
+  // Nest answers a handler that returned `null` with 200 and an empty body, not
+  // the string "null" — `res.json()` on that throws. GET /jobs/:id/share does
+  // exactly this for a job that was never shared.
+  const body = await res.text();
+  if (body.length === 0) return null as T;
+  return JSON.parse(body) as T;
 }
 
 export function getMe(): Promise<Me> {
@@ -96,16 +102,51 @@ export function stopAndRetryJob(
   return apiFetch(`/jobs/${jobId}/stop-retry`, { method: 'POST' });
 }
 
+/** The job's live share link, or null if the owner never created one. */
+export function getShareLink(jobId: string): Promise<ShareLink | null> {
+  return apiFetch<ShareLink | null>(`/jobs/${jobId}/share`);
+}
+
+/** Idempotent — an existing live link is returned rather than a second token. */
+export function createShareLink(jobId: string): Promise<ShareLink> {
+  return apiFetch<ShareLink>(`/jobs/${jobId}/share`, { method: 'POST' });
+}
+
+export function revokeShareLink(jobId: string): Promise<void> {
+  return apiFetch(`/jobs/${jobId}/share`, { method: 'DELETE' });
+}
+
+/**
+ * Redeems a share token. Requires *a* CodeMind session, not the owner's — a
+ * 401 here means "log in first", which is what /share/[token] acts on.
+ */
+export function getSharedReport(token: string): Promise<SharedReport> {
+  return apiFetch<SharedReport>(`/share/${encodeURIComponent(token)}`);
+}
+
+export function shareUrl(token: string): string {
+  const origin =
+    typeof window === 'undefined' ? '' : window.location.origin;
+  return `${origin}/share/${token}`;
+}
+
 export function logout(): Promise<void> {
   return apiFetch('/auth/logout', { method: 'POST' }, false);
 }
 
-export function githubLoginUrl(): string {
-  return `${API_URL}/auth/github`;
+/**
+ * `next` is a same-origin path the API redirects back to after OAuth (it round
+ * trips through a short-lived cookie). Used to land a share-link visitor on the
+ * report they asked for instead of the dashboard.
+ */
+export function githubLoginUrl(next?: string): string {
+  const url = `${API_URL}/auth/github`;
+  return next ? `${url}?next=${encodeURIComponent(next)}` : url;
 }
 
-export function googleLoginUrl(): string {
-  return `${API_URL}/auth/google`;
+export function googleLoginUrl(next?: string): string {
+  const url = `${API_URL}/auth/google`;
+  return next ? `${url}?next=${encodeURIComponent(next)}` : url;
 }
 
 export function exportUrl(jobId: string, format: 'md' | 'pdf'): string {

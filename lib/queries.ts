@@ -2,14 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ApiError,
   analyzeRepo,
+  createShareLink,
   getJob,
   getMe,
+  getShareLink,
+  getSharedReport,
   listRepos,
   logout,
   retryJob,
+  revokeShareLink,
   stopAndRetryJob,
 } from './api';
-import type { Job, Me, Repo } from './types';
+import type { Job, Me, Repo, ShareLink, SharedReport } from './types';
 
 export function useMeQuery() {
   return useQuery<Me | null>({
@@ -83,5 +87,43 @@ export function useStopAndRetryJobMutation() {
     mutationFn: stopAndRetryJob,
     onSuccess: (_, jobId) =>
       queryClient.invalidateQueries({ queryKey: ['job', jobId] }),
+  });
+}
+
+/** Only fetched once the share sheet is opened — an unshared job has no link. */
+export function useShareLinkQuery(jobId: string, enabled: boolean) {
+  return useQuery<ShareLink | null>({
+    queryKey: ['share', jobId],
+    queryFn: () => getShareLink(jobId),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateShareLinkMutation(jobId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<ShareLink, ApiError, void>({
+    mutationFn: () => createShareLink(jobId),
+    onSuccess: (link) => queryClient.setQueryData(['share', jobId], link),
+  });
+}
+
+export function useRevokeShareLinkMutation(jobId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, void>({
+    mutationFn: () => revokeShareLink(jobId),
+    onSuccess: () => queryClient.setQueryData(['share', jobId], null),
+  });
+}
+
+/**
+ * A 401 is meaningful here — it means "not signed in", and the page turns it
+ * into a login redirect — so it must not be retried away or swallowed.
+ */
+export function useSharedReportQuery(token: string) {
+  return useQuery<SharedReport, ApiError>({
+    queryKey: ['shared-report', token],
+    queryFn: () => getSharedReport(token),
+    retry: false,
   });
 }

@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { ApiError, exportUrl } from '../../../lib/api';
+import { ApiError } from '../../../lib/api';
 import { getSocket } from '../../../lib/socket';
 import type { Job, JobEvent } from '../../../lib/types';
 import {
@@ -13,21 +13,20 @@ import {
   useStopAndRetryJobMutation,
 } from '../../../lib/queries';
 import { useJobProgressStore } from '../../../lib/stores/job-progress-store';
-import { ReportView } from '../../../components/ReportView';
 import { JobPipeline } from '../../../components/JobPipeline';
+import { ReportDashboard } from '../../../components/report/ReportDashboard';
+import { ReportHeader } from '../../../components/report/ReportHeader';
+import { ExportMenu } from '../../../components/report/ExportMenu';
+import { ShareDialog } from '../../../components/report/ShareDialog';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Spotlight } from '../../../components/ui/spotlight';
 import { ShootingStars } from '../../../components/ui/shooting-stars';
 import { StarsBackground } from '../../../components/ui/stars-background';
 import {
   ArrowLeft,
-  Download,
-  FileText,
   CheckCircle2,
   AlertTriangle,
-  ExternalLink,
   Loader2,
-  Terminal,
   Activity,
   RotateCw,
   OctagonX,
@@ -181,6 +180,8 @@ export default function JobPage() {
       ? 100
       : 0;
 
+  const isFinished = job.status === 'done';
+
   // Active status description helper
   const getStatusDescription = () => {
     if (job.status === 'pending') return 'Waiting in queue...';
@@ -207,140 +208,137 @@ export default function JobPage() {
         twinkleProbability={reduceMotion ? 0 : 0.6}
       />
       {!reduceMotion && (
-        <>
-          <ShootingStars
-            className="pointer-events-none"
-            starColor="#5b8def"
-            trailColor="#8b5cf6"
-            minDelay={2200}
-            maxDelay={5500}
-          />
-        </>
+        <ShootingStars
+          className="pointer-events-none"
+          starColor="#5b8def"
+          trailColor="#8b5cf6"
+          minDelay={2200}
+          maxDelay={5500}
+        />
       )}
       <Spotlight className="-top-40 left-0 md:-top-20 md:left-60" fill="#5b8def" />
 
       {/* Main Container */}
-      <div className="relative z-10 mx-auto max-w-275 px-6 py-10">
-        {/* Navigation Breadcrumb */}
-        <div className="mb-6 flex items-center justify-between">
-          <a
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-muted hover:text-fg transition-colors"
-          >
-            <ArrowLeft size={16} /> Back to Repositories
-          </a>
-          <span className="font-mono text-xs text-muted">ID: {job.id.substring(0, 8)}</span>
-        </div>
-
-        {/* Repository Header */}
-        <div className="mb-8 border border-white/5 bg-surface/50 backdrop-blur-md rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-semibold m-0 text-white tracking-tight">
-                {job.repoFullName}
-              </h1>
-              <span className={`badge badge-${job.status}`}>{job.status}</span>
+      <div className="relative z-10 mx-auto max-w-350 px-6 pb-16">
+        <ReportHeader
+          repoFullName={job.repoFullName}
+          status={job.status}
+          createdAt={job.createdAt}
+          synthesis={job.report?.synthesis ?? null}
+          eyebrow={
+            <div className="mb-3 flex items-center justify-between">
+              <a
+                href="/"
+                className="inline-flex items-center gap-2 text-sm text-muted no-underline hover:text-fg"
+              >
+                <ArrowLeft size={15} /> Back to Repositories
+              </a>
+              <span className="font-mono text-xs text-muted">
+                ID: {job.id.substring(0, 8)}
+              </span>
             </div>
-            <p className="m-0 mt-1 text-sm text-muted">
-              Triggered on {new Date(job.createdAt).toLocaleDateString()} at{' '}
-              {new Date(job.createdAt).toLocaleTimeString()}
-            </p>
-          </div>
+          }
+          actions={
+            isFinished && job.report ? (
+              <>
+                <ShareDialog jobId={job.id} />
+                <ExportMenu jobId={job.id} repoFullName={job.repoFullName} />
+              </>
+            ) : null
+          }
+        />
 
-          {job.status === 'done' && job.report && (
-            <a
-              className="btn btn-secondary text-sm"
-              href={exportUrl(job.id, 'md')}
-              download={`${job.repoFullName.replace('/', '_')}_report.md`}
-            >
-              <Download size={15} /> Export Markdown
-            </a>
-          )}
-        </div>
+        {/* The pipeline is a *progress* visual. While the job runs it earns the
+            fold; once the report exists it collapses to a one-line strip so the
+            findings start above it. */}
+        {!isFinished ? (
+          <div className="mb-6 rounded-3xl border border-line bg-surface/30 p-6 backdrop-blur-md md:p-8">
+            <JobPipeline agentStatuses={agentStatuses} jobStatus={job.status} />
 
-        {/* Dynamic Pipeline Graph */}
-        <div className="mb-8 border border-white/5 bg-surface/30 backdrop-blur-md rounded-3xl p-6 md:p-8">
-          <JobPipeline agentStatuses={agentStatuses} jobStatus={job.status} />
-
-          {/* Progress Logs */}
-          <div className="mt-8 border-t border-white/5 pt-6 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/5 bg-surface-2">
-                {job.status === 'running' ? (
-                  <Activity className="text-glow-blue animate-pulse" size={16} />
-                ) : job.status === 'done' ? (
-                  <CheckCircle2 className="text-glow-green" size={16} />
-                ) : (
-                  <AlertTriangle className="text-glow-amber" size={16} />
-                )}
-              </div>
-              <div>
-                <div className="text-sm font-medium text-white">{getStatusDescription()}</div>
-                <div className="text-xs text-muted font-mono">
-                  {progress
-                    ? `${progress.done}/${progress.total} tasks completed`
-                    : job.status === 'done'
-                    ? 'All agents completed successfully'
-                    : 'Awaiting execution pipeline'}
+            <div className="mt-8 flex flex-col items-stretch justify-between gap-4 border-t border-line pt-6 md:flex-row md:items-center">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface-2">
+                  {job.status === 'running' ? (
+                    <Activity className="text-glow-blue animate-pulse" size={16} />
+                  ) : (
+                    <AlertTriangle className="text-glow-amber" size={16} />
+                  )}
                 </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Micro Progress Bar */}
-              {job.status === 'running' && (
-                <div className="flex-1 max-w-70 md:max-w-50">
-                  <div className="progress-bar">
-                    <motion.div
-                      className="progress-bar-fill"
-                      initial={{ width: '0%' }}
-                      animate={{ width: `${percent}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
+                <div>
+                  <div className="text-sm font-medium text-white">
+                    {getStatusDescription()}
+                  </div>
+                  <div className="font-mono text-xs text-muted">
+                    {progress
+                      ? `${progress.done}/${progress.total} tasks completed`
+                      : 'Awaiting execution pipeline'}
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Stuck job escape hatch — abort the current run and re-analyze
-                  from scratch. A wedged job looks identical to a healthy one,
-                  so this is available throughout pending/running. */}
-              {(job.status === 'running' || job.status === 'pending') && (
-                <StopRetryButton
-                  pending={stopRetryMutation.isPending}
-                  onClick={() => {
-                    if (
-                      !window.confirm(
-                        'Stop this analysis and restart it from scratch? Any in-progress work is discarded.',
+              <div className="flex items-center gap-3">
+                {job.status === 'running' && (
+                  <div className="max-w-70 flex-1 md:max-w-50">
+                    <div className="progress-bar">
+                      <motion.div
+                        className="progress-bar-fill"
+                        initial={{ width: '0%' }}
+                        animate={{ width: `${percent}%` }}
+                        transition={{ duration: 0.5 }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Stuck job escape hatch — abort the current run and re-analyze
+                    from scratch. A wedged job looks identical to a healthy one,
+                    so this is available throughout pending/running. */}
+                {(job.status === 'running' || job.status === 'pending') && (
+                  <StopRetryButton
+                    pending={stopRetryMutation.isPending}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          'Stop this analysis and restart it from scratch? Any in-progress work is discarded.',
+                        )
                       )
-                    )
-                      return;
-                    reset();
-                    stopRetryMutation.mutate(job.id);
-                  }}
-                />
-              )}
+                        return;
+                      reset();
+                      stopRetryMutation.mutate(job.id);
+                    }}
+                  />
+                )}
+              </div>
             </div>
-          </div>
 
-          {stopRetryMutation.isError && (
-            <p
-              className="mt-3 mb-0 text-xs text-red-300/90 font-mono"
-              aria-live="polite"
-            >
-              Stop &amp; retry failed: {stopRetryMutation.error.message}
-            </p>
-          )}
-        </div>
+            {stopRetryMutation.isError && (
+              <p className="mt-3 mb-0 font-mono text-xs text-red-300/90" aria-live="polite">
+                Stop &amp; retry failed: {stopRetryMutation.error.message}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-line bg-surface/40 px-4 py-2.5 backdrop-blur-md">
+            <CheckCircle2 size={15} className="text-glow-green" />
+            <span className="text-sm text-fg">Analysis complete</span>
+            <span className="font-mono text-xs text-muted">
+              {job.agentResults.length} agents ·{' '}
+              {failedAgentTypes.length === 0
+                ? 'all succeeded'
+                : `${failedAgentTypes.length} failed`}
+            </span>
+          </div>
+        )}
 
         {/* Failed State Card */}
         {job.status === 'failed' && (
-          <div className="border border-red-500/20 bg-red-950/10 backdrop-blur-md rounded-2xl p-6 mb-8">
+          <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-950/10 p-6 backdrop-blur-md">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-red-500 font-semibold m-0 mb-2 flex items-center gap-2">
+                <h3 className="m-0 mb-2 flex items-center gap-2 font-semibold text-red-500">
                   <AlertTriangle size={18} /> Analysis Failed
                 </h3>
-                <p className="m-0 text-sm text-red-200/80 leading-relaxed font-mono">
+                <p className="m-0 font-mono text-sm leading-relaxed text-red-200/80">
                   {failureReason || 'An unknown framework or connection error occurred.'}
                 </p>
               </div>
@@ -351,57 +349,49 @@ export default function JobPage() {
               />
             </div>
             {retryMutation.isError && (
-              <p className="mt-3 mb-0 text-xs text-red-300/90 font-mono" aria-live="polite">
+              <p className="mt-3 mb-0 font-mono text-xs text-red-300/90" aria-live="polite">
                 Retry failed: {retryMutation.error.message}
               </p>
             )}
           </div>
         )}
 
-        {/* Partial Failure Banner (job completed, but some agents failed) */}
-        {job.status === 'done' && failedAgentTypes.length > 0 && (
-          <div className="border border-amber-500/20 bg-amber-950/10 backdrop-blur-md rounded-2xl p-6 mb-8">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-glow-amber font-semibold m-0 mb-2 flex items-center gap-2">
-                  <AlertTriangle size={18} /> {failedAgentTypes.length} Agent
-                  {failedAgentTypes.length > 1 ? 's' : ''} Failed
-                </h3>
-                <p className="m-0 text-sm text-muted leading-relaxed font-mono">
-                  {failedAgentTypes.join(', ')} — report below is generated from the
-                  agents that did succeed.
-                </p>
-              </div>
-              <RetryButton
-                label={`Retry ${failedAgentTypes.length} failed`}
-                onClick={() => retryMutation.mutate(job.id)}
-                pending={retryMutation.isPending}
-              />
-            </div>
-            {retryMutation.isError && (
-              <p className="mt-3 mb-0 text-xs text-red-300/90 font-mono" aria-live="polite">
-                Retry failed: {retryMutation.error.message}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Done / Report View */}
-        {job.status === 'done' && job.report && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="border border-white/5 bg-surface/20 backdrop-blur-sm rounded-3xl p-6 md:p-10"
-          >
-            <div className="mb-6 flex justify-between items-center border-b border-white/5 pb-4">
-              <h2 className="text-xl font-semibold m-0 text-white flex items-center gap-2">
-                <FileText size={18} className="text-glow-blue" /> Generated Analysis Report
-              </h2>
-              <span className="text-xs font-mono text-muted">Format: GitHub Flavored Markdown</span>
-            </div>
-            <ReportView markdown={job.report.markdownContent} />
-          </motion.div>
+        {isFinished && job.report && (
+          <ReportDashboard
+            report={job.report}
+            agentResults={job.agentResults}
+            banner={
+              failedAgentTypes.length > 0 ? (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-6 backdrop-blur-md">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="m-0 mb-2 flex items-center gap-2 font-semibold text-glow-amber">
+                        <AlertTriangle size={18} /> {failedAgentTypes.length} Agent
+                        {failedAgentTypes.length > 1 ? 's' : ''} Failed
+                      </h3>
+                      <p className="m-0 font-mono text-sm leading-relaxed text-muted">
+                        {failedAgentTypes.join(', ')} — the report below is
+                        generated from the agents that did succeed.
+                      </p>
+                    </div>
+                    <RetryButton
+                      label={`Retry ${failedAgentTypes.length} failed`}
+                      onClick={() => retryMutation.mutate(job.id)}
+                      pending={retryMutation.isPending}
+                    />
+                  </div>
+                  {retryMutation.isError && (
+                    <p
+                      className="mt-3 mb-0 font-mono text-xs text-red-300/90"
+                      aria-live="polite"
+                    >
+                      Retry failed: {retryMutation.error.message}
+                    </p>
+                  )}
+                </div>
+              ) : null
+            }
+          />
         )}
       </div>
     </div>
@@ -456,4 +446,3 @@ function StopRetryButton({
     </button>
   );
 }
-

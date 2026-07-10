@@ -1,5 +1,7 @@
 'use client';
 
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { githubLoginUrl, googleLoginUrl } from '../../lib/api';
 import { BackgroundBeams } from '../../components/ui/background-beams';
 import { HoverBorderGradient } from '../../components/ui/hover-border-gradient';
@@ -37,7 +39,33 @@ function GoogleMark() {
   );
 }
 
+/**
+ * Only same-origin paths survive, so `?next=` can never be turned into an open
+ * redirect off our own login page. The API re-validates it independently before
+ * redirecting after OAuth.
+ */
+function safeNext(value: string | null): string | undefined {
+  if (!value?.startsWith('/')) return undefined;
+  if (value.startsWith('//') || value.startsWith('/\\')) return undefined;
+  return value;
+}
+
 export default function LoginPage() {
+  return (
+    // useSearchParams needs a Suspense boundary or the whole route opts out of
+    // static prerendering.
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  // Set when a share link bounced an unauthenticated visitor here — they land
+  // back on the report they were sent once OAuth completes.
+  const next = safeNext(useSearchParams().get('next'));
+  const isSharedReport = next?.startsWith('/share/') ?? false;
+
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-bg px-6 py-16 antialiased">
       <BackgroundBeams />
@@ -48,9 +76,15 @@ export default function LoginPage() {
           <Logo className="h-14" />
         </div>
 
-        <h1 className="mb-9 text-4xl font-bold tracking-tight text-fg md:text-5xl">
+        <h1 className="mb-3 text-4xl font-bold tracking-tight text-fg md:text-5xl">
           Sign in to your account
         </h1>
+
+        <p className="mx-auto mb-9 max-w-sm text-sm text-muted">
+          {isSharedReport
+            ? 'A report was shared with you. Sign in to open it — you’ll get a read-only view.'
+            : 'Connect a provider to analyze your repositories.'}
+        </p>
 
         {/* OAuth providers */}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -58,7 +92,7 @@ export default function LoginPage() {
             as="a"
             containerClassName="w-full rounded-xl no-underline"
             className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-[#0d0d10] text-[0.95rem] font-medium text-fg"
-            {...{ href: githubLoginUrl() }}
+            {...{ href: githubLoginUrl(next) }}
           >
             <span className="text-muted">
               <GithubMark />
@@ -69,7 +103,7 @@ export default function LoginPage() {
             as="a"
             containerClassName="w-full rounded-xl no-underline"
             className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-[#0d0d10] text-[0.95rem] font-medium text-fg"
-            {...{ href: googleLoginUrl() }}
+            {...{ href: googleLoginUrl(next) }}
           >
             <GoogleMark />
             Login with Google

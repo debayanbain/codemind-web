@@ -1,0 +1,4 @@
+node_modules
+.next
+.codegraph
+.DS_Store

@@ -1,0 +1,20 @@
+<svg width="100%" viewBox="74 58 410 92" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>CodeMind logo</title>
+  <desc>Horizontal logo: a stylized brain made of connected graph nodes with a code bracket, next to the bold uppercase wordmark CODEMIND.</desc>
+
+  <g>
+    <path d="M120 66 C96 66 82 82 82 100 C82 112 88 121 97 127 L97 134 C97 137 100 139 103 139 L112 139" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M120 66 C144 66 158 82 158 100 C158 112 152 121 143 127 L143 134 C143 137 140 139 137 139 L128 139" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="120" y1="80" x2="104" y2="100" stroke="#8a9fd6" stroke-width="3.5"/>
+    <line x1="120" y1="80" x2="136" y2="100" stroke="#8a9fd6" stroke-width="3.5"/>
+    <line x1="104" y1="100" x2="120" y2="118" stroke="#8a9fd6" stroke-width="3.5"/>
+    <line x1="136" y1="100" x2="120" y2="118" stroke="#8a9fd6" stroke-width="3.5"/>
+    <line x1="104" y1="100" x2="136" y2="100" stroke="#8a9fd6" stroke-width="3.5"/>
+    <circle cx="120" cy="80" r="7" fill="#5b8def"/>
+    <circle cx="104" cy="100" r="6" fill="#8b5cf6"/>
+    <circle cx="136" cy="100" r="6" fill="#8b5cf6"/>
+    <circle cx="120" cy="118" r="7" fill="#2dd4bf"/>
+  </g>
+
+  <text x="188" y="119" font-family="'Anthropic Sans', -apple-system, 'system-ui', 'Segoe UI', sans-serif" font-size="50" font-weight="700" letter-spacing="1" fill="#FFFFFF">CODEMIND</text>
+</svg>

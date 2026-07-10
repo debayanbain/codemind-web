@@ -149,6 +149,38 @@ export function ArchitectureSection({
 
           <DiagramFigure diagram={findDiagram(report, 'architecture-modules')} />
 
+          {arch.module_responsibilities?.length ? (
+            <div>
+              <h3 className="mb-3 mt-0 text-sm font-medium text-fg">Modules</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-120 border-collapse text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-muted">
+                      <th className="border-b border-line px-3 py-2 font-medium">
+                        Module
+                      </th>
+                      <th className="border-b border-line px-3 py-2 font-medium">
+                        Responsibility
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {arch.module_responsibilities.map((m, i) => (
+                      <tr key={`${m.module}-${i}`}>
+                        <td className="border-b border-line px-3 py-2.5 align-top">
+                          <CodeChip>{m.module}</CodeChip>
+                        </td>
+                        <td className="border-b border-line px-3 py-2.5 text-fg/80">
+                          {m.responsibility}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
           {arch.entry_points?.length ? (
             <div>
               <h3 className="mb-2 mt-0 text-sm font-medium text-fg">
@@ -183,9 +215,20 @@ export function ArchitectureSection({
                 Request flows
               </h3>
               <div className="grid gap-5">
-                {flows.map((flow) => (
-                  <DiagramFigure key={flow.slug} diagram={flow} />
-                ))}
+                {flows.map((flow, i) => {
+                  // request-flow-1 correlates to request_flows[0].
+                  const description = arch.request_flows?.[i]?.description;
+                  return (
+                    <div key={flow.slug} className="grid gap-2">
+                      {description ? (
+                        <p className="m-0 text-sm leading-relaxed text-fg/70">
+                          {description}
+                        </p>
+                      ) : null}
+                      <DiagramFigure diagram={flow} />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

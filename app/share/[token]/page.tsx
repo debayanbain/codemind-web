@@ -7,7 +7,6 @@ import { ApiError } from '../../../lib/api';
 import { useSharedReportQuery } from '../../../lib/queries';
 import { ReportDashboard } from '../../../components/report/ReportDashboard';
 import { ReportHeader } from '../../../components/report/ReportHeader';
-import { Spotlight } from '../../../components/ui/spotlight';
 import { StarsBackground } from '../../../components/ui/stars-background';
 
 export default function SharedReportPage() {
@@ -57,13 +56,13 @@ export default function SharedReportPage() {
   const sharedBy = data.sharedBy.githubUsername ?? 'a CodeMind user';
 
   return (
-    <div className="relative min-h-dvh w-full overflow-hidden bg-bg">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-size-[28px_28px] mask-[radial-gradient(ellipse_60%_55%_at_50%_35%,black,transparent)]"
-        aria-hidden="true"
-      />
-      <StarsBackground className="pointer-events-none" starDensity={0.00012} />
-      <Spotlight className="-top-40 left-0 md:-top-20 md:left-60" fill="#5b8def" />
+    <div className="relative min-h-dvh w-full bg-bg">
+      {/* Fixed to the viewport so the star field follows the reader down the
+          whole report, not just the first screenful. */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-size-[28px_28px] mask-[radial-gradient(ellipse_60%_55%_at_50%_35%,black,transparent)]" />
+        <StarsBackground starDensity={0.00012} />
+      </div>
 
       <div className="relative z-10 mx-auto max-w-350 px-6 pb-16">
         <ReportHeader

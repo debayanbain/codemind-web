@@ -61,6 +61,17 @@ export function useJobQuery(jobId: string) {
   return useQuery<Job>({
     queryKey: ['job', jobId],
     queryFn: () => getJob(jobId),
+    // Socket events are the fast path, but they can be missed outright — the
+    // orchestrator can emit 'job:status running' before this page's socket
+    // subscribe lands (typical right after analyze / stop-and-retry
+    // navigation). Poll as a fallback until the job settles WITH its report,
+    // so a missed event degrades to a ~3s delay instead of a frozen page.
+    refetchInterval: (query) => {
+      const job = query.state.data;
+      if (job?.status === 'failed') return false;
+      if (job?.status === 'done' && job.report) return false;
+      return 3000;
+    },
   });
 }
 

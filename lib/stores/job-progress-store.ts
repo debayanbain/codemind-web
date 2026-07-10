@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type AgentStatus = 'pending' | 'running' | 'completed' | 'failed';
 
-const AGENT_IDS = ['architecture', 'security', 'dependency', 'quality', 'docs'];
+export const AGENT_IDS = ['architecture', 'security', 'dependency', 'quality', 'docs'];
 
 function initialAgentStatuses(): Record<string, AgentStatus> {
   return Object.fromEntries(AGENT_IDS.map((id) => [id, 'pending']));
@@ -16,6 +16,7 @@ interface JobProgressState {
   setAgentStatus: (agentId: string, status: AgentStatus) => void;
   setAllAgents: (status: AgentStatus) => void;
   markPendingAsRunning: () => void;
+  markAgentRunningIfPending: (agentId: string) => void;
   markStaleRunningAsFailed: () => void;
   setFailureReason: (reason: string) => void;
   reset: () => void;
@@ -55,6 +56,17 @@ export const useJobProgressStore = create<JobProgressState>((set) => ({
       }
       return { agentStatuses: next };
     }),
+
+  // Staggered variant of markPendingAsRunning: the page flips agents one at a
+  // time (via timeouts) so the pipeline lights up sequentially instead of all
+  // five nodes snapping to 'running' in the same frame. Never overwrites a
+  // terminal status — a job:progress event can land mid-stagger.
+  markAgentRunningIfPending: (agentId) =>
+    set((state) =>
+      state.agentStatuses[agentId] === 'pending'
+        ? { agentStatuses: { ...state.agentStatuses, [agentId]: 'running' } }
+        : state,
+    ),
 
   markStaleRunningAsFailed: () =>
     set((state) => {

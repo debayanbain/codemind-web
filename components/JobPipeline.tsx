@@ -26,6 +26,31 @@ const AGENTS = [
   { id: 'docs', name: 'docs', label: 'Docs', icon: FileText, color: '#ffb347', y: 360 },
 ];
 
+/**
+ * Blurred shimmer stand-in for the pipeline while the job is still queued —
+ * same node geometry as the real SVG so the swap to JobPipeline doesn't jump.
+ */
+export function JobPipelineSkeleton() {
+  return (
+    <div
+      className="relative mx-auto w-full max-w-4xl"
+      role="status"
+      aria-label="Preparing analysis pipeline"
+    >
+      <div className="flex items-center justify-between gap-6 py-4 md:gap-10">
+        <div className="skeleton h-14 w-28 shrink-0" />
+        <div className="grid flex-1 gap-3">
+          {AGENTS.map((agent) => (
+            <div key={agent.id} className="skeleton mx-auto h-10 w-full max-w-40" />
+          ))}
+        </div>
+        <div className="skeleton h-19 w-44 shrink-0" />
+      </div>
+      <span className="sr-only">Job queued — waiting for a worker…</span>
+    </div>
+  );
+}
+
 const inPath = (y: number) => `M150 210 C240 210, 250 ${y}, 340 ${y}`;
 const outPath = (y: number) => `M490 ${y} C580 ${y}, 590 210, 680 210`;
 const pulsePath = (y: number) =>
@@ -48,7 +73,12 @@ export function JobPipeline({ agentStatuses, jobStatus }: JobPipelineProps) {
     const s = getStepStatus(a.id);
     return s === 'completed' || s === 'failed';
   });
-  const synthesizing = jobStatus === 'running' && allAgentsSettled;
+  const anyCompleted = AGENTS.some((a) => getStepStatus(a.id) === 'completed');
+  // Only claim "synthesizing" when there's actually something to synthesize.
+  // If every agent failed, the synthesizer will fail the job — showing a
+  // hopeful blue spinner over five red nodes reads as a stuck, lying UI.
+  const synthesizing = jobStatus === 'running' && allAgentsSettled && anyCompleted;
+  const allAgentsFailed = allAgentsSettled && !anyCompleted;
 
   return (
     <div className="relative mx-auto w-full max-w-4xl" aria-hidden="true">
@@ -269,14 +299,20 @@ export function JobPipeline({ agentStatuses, jobStatus }: JobPipelineProps) {
               stroke={
                 jobStatus === 'done'
                   ? '#46d296'
+                  : allAgentsFailed
+                  ? '#ff6363'
                   : synthesizing
                   ? '#5b8def'
                   : 'rgba(255,255,255,0.12)'
               }
-              strokeWidth={jobStatus === 'done' || synthesizing ? '1.5' : '1'}
+              strokeWidth={
+                jobStatus === 'done' || synthesizing || allAgentsFailed ? '1.5' : '1'
+              }
               style={
                 jobStatus === 'done'
                   ? { filter: 'drop-shadow(0 0 10px rgba(70, 210, 150, 0.2))' }
+                  : allAgentsFailed
+                  ? { filter: 'drop-shadow(0 0 8px rgba(255, 99, 99, 0.15))' }
                   : undefined
               }
             />
@@ -290,6 +326,8 @@ export function JobPipeline({ agentStatuses, jobStatus }: JobPipelineProps) {
               >
                 <Loader2 size={18} color="#5b8def" strokeWidth={1.8} />
               </motion.g>
+            ) : allAgentsFailed ? (
+              <AlertTriangle size={18} color="#ff6363" strokeWidth={1.8} />
             ) : (
               <FileText
                 size={18}
@@ -298,8 +336,14 @@ export function JobPipeline({ agentStatuses, jobStatus }: JobPipelineProps) {
               />
             )}
           </g>
-          <text x="726" y="200" fontFamily="var(--font-mono-stack)" fontSize="13" fill="#f5f5f5">
-            {synthesizing ? 'synthesizing…' : 'report.md'}
+          <text
+            x="726"
+            y="200"
+            fontFamily="var(--font-mono-stack)"
+            fontSize="13"
+            fill={allAgentsFailed ? '#ff8f8f' : '#f5f5f5'}
+          >
+            {synthesizing ? 'synthesizing…' : allAgentsFailed ? 'no report' : 'report.md'}
           </text>
           {/* Placeholder text lines — shimmer while synthesizing */}
           <motion.rect

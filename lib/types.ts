@@ -58,6 +58,12 @@ export interface ModuleDependency {
 export interface RequestFlow {
   name: string;
   steps: string[];
+  description?: string;
+}
+
+export interface ModuleResponsibility {
+  module: string;
+  responsibility: string;
 }
 
 export interface ArchitectureOutput {
@@ -67,6 +73,7 @@ export interface ArchitectureOutput {
   entry_points?: string[];
   modules?: string[];
   module_dependencies?: ModuleDependency[];
+  module_responsibilities?: ModuleResponsibility[];
   services?: string[];
   request_flows?: RequestFlow[];
   design_patterns?: string[];

@@ -12,14 +12,15 @@ import {
   useRetryJobMutation,
   useStopAndRetryJobMutation,
 } from '../../../lib/queries';
-import { useJobProgressStore } from '../../../lib/stores/job-progress-store';
-import { JobPipeline } from '../../../components/JobPipeline';
+import { AGENT_IDS, useJobProgressStore } from '../../../lib/stores/job-progress-store';
+import { JobPipeline, JobPipelineSkeleton } from '../../../components/JobPipeline';
 import { ReportDashboard } from '../../../components/report/ReportDashboard';
 import { ReportHeader } from '../../../components/report/ReportHeader';
+import { ReportSkeleton } from '../../../components/report/ReportSkeleton';
 import { ExportMenu } from '../../../components/report/ExportMenu';
 import { ShareDialog } from '../../../components/report/ShareDialog';
-import { motion, useReducedMotion } from 'framer-motion';
-import { Spotlight } from '../../../components/ui/spotlight';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Button } from '../../../components/ui/button';
 import { ShootingStars } from '../../../components/ui/shooting-stars';
 import { StarsBackground } from '../../../components/ui/stars-background';
 import {
@@ -49,7 +50,9 @@ export default function JobPage() {
   const setProgress = useJobProgressStore((s) => s.setProgress);
   const setAgentStatus = useJobProgressStore((s) => s.setAgentStatus);
   const setAllAgents = useJobProgressStore((s) => s.setAllAgents);
-  const markPendingAsRunning = useJobProgressStore((s) => s.markPendingAsRunning);
+  const markAgentRunningIfPending = useJobProgressStore(
+    (s) => s.markAgentRunningIfPending,
+  );
   const markStaleRunningAsFailed = useJobProgressStore(
     (s) => s.markStaleRunningAsFailed,
   );
@@ -79,14 +82,23 @@ export default function JobPage() {
 
   // Once the job is running, show every not-yet-finished agent as 'running'
   // (pulsing) so the pipeline animates continuously through download/index and
-  // execution. Each agent flips to 'completed' individually via its own
+  // execution. Agents light up one at a time (staggered timeouts) so the
+  // pipeline reads as a sequence of workers spinning up, not a single frame
+  // flip. Each agent still flips to 'completed' individually via its own
   // job:progress socket event (see onEvent below) — we do NOT derive per-agent
   // status from the done *count* by array index, because the five agents run in
   // parallel and don't finish in a fixed order.
   useEffect(() => {
-    if (job?.status !== 'running') return;
-    markPendingAsRunning();
-  }, [job?.status, progress, markPendingAsRunning]);
+    // progress !== null while still 'pending' means we missed the running
+    // status event but agent work is demonstrably happening — treat as running.
+    const running =
+      job?.status === 'running' || (job?.status === 'pending' && progress !== null);
+    if (!running) return;
+    const timers = AGENT_IDS.map((id, i) =>
+      setTimeout(() => markAgentRunningIfPending(id), i * 220),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [job?.status, progress, markAgentRunningIfPending]);
 
   // Subscribe to real-time events
   useEffect(() => {
@@ -104,6 +116,11 @@ export default function JobPage() {
           if (event.status === 'done') setAllAgents('completed');
           break;
         case 'job:progress':
+          // Progress proves the job is executing — repair a missed
+          // 'job:status running' event so the UI can't sit on 'pending'.
+          queryClient.setQueryData<Job>(['job', jobId], (prev) =>
+            prev && prev.status === 'pending' ? { ...prev, status: 'running' } : prev,
+          );
           setProgress({ done: event.done, total: event.total });
           if (event.agentType) {
             const type =
@@ -156,9 +173,9 @@ export default function JobPage() {
           <p className="text-muted text-sm mb-6">
             {jobError instanceof ApiError ? jobError.message : 'Job not found'}
           </p>
-          <a href="/" className="btn btn-secondary w-full">
+          <Button href="/" variant="secondary" className="w-full">
             <ArrowLeft size={16} /> Return to Dashboard
-          </a>
+          </Button>
         </div>
       </div>
     );
@@ -182,11 +199,33 @@ export default function JobPage() {
 
   const isFinished = job.status === 'done';
 
+  // What the UI treats as the job's status. The DB row can lag reality when
+  // the 'job:status running' socket event was missed — but agent progress or
+  // settled agent results prove execution, so never render "waiting in queue"
+  // (or the queued skeleton) over a job that is visibly doing work.
+  const agentsActive = Object.values(agentStatuses).some((s) => s !== 'pending');
+  const effectiveStatus: Job['status'] =
+    job.status === 'pending' && (progress !== null || agentsActive)
+      ? 'running'
+      : job.status;
+
+  // Every agent has settled and not one succeeded — there is nothing to
+  // synthesize. The synthesizer now fails such jobs itself, but that only fires
+  // once completion tracking reaches the expected count; a wedged run can sit
+  // here indefinitely, so surface it as stalled and point at Stop & retry
+  // rather than showing a hopeful "synthesizing" spinner forever.
+  const agentValues = Object.values(agentStatuses);
+  const allAgentsFailed =
+    effectiveStatus === 'running' &&
+    agentValues.length > 0 &&
+    agentValues.every((s) => s === 'failed');
+
   // Active status description helper
   const getStatusDescription = () => {
-    if (job.status === 'pending') return 'Waiting in queue...';
-    if (job.status === 'failed') return 'Analysis failed';
-    if (job.status === 'done') return 'Analysis complete';
+    if (effectiveStatus === 'pending') return 'Waiting in queue...';
+    if (effectiveStatus === 'failed') return 'Analysis failed';
+    if (effectiveStatus === 'done') return 'Analysis complete';
+    if (allAgentsFailed) return 'All agents failed — nothing to synthesize';
 
     if (!progress) return 'Cloning and indexing repository...';
     const running = Object.values(agentStatuses).filter((s) => s === 'running').length;
@@ -195,28 +234,26 @@ export default function JobPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-bg overflow-hidden">
-      {/* Background patterns */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-size-[28px_28px] mask-[radial-gradient(ellipse_60%_55%_at_50%_35%,black,transparent)]"
-        aria-hidden="true"
-      />
-      <StarsBackground
-        className="pointer-events-none"
-        starDensity={0.00015}
-        allStarsTwinkle={!reduceMotion}
-        twinkleProbability={reduceMotion ? 0 : 0.6}
-      />
-      {!reduceMotion && (
-        <ShootingStars
-          className="pointer-events-none"
-          starColor="#5b8def"
-          trailColor="#8b5cf6"
-          minDelay={2200}
-          maxDelay={5500}
+    <div className="relative min-h-screen w-full bg-bg">
+      {/* Background patterns — fixed to the viewport so the star field and
+          shooting stars stay behind the content at any scroll depth, instead
+          of living only in the first viewport-height of the document. */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-size-[28px_28px] mask-[radial-gradient(ellipse_60%_55%_at_50%_35%,black,transparent)]" />
+        <StarsBackground
+          starDensity={0.00015}
+          allStarsTwinkle={!reduceMotion}
+          twinkleProbability={reduceMotion ? 0 : 0.6}
         />
-      )}
-      <Spotlight className="-top-40 left-0 md:-top-20 md:left-60" fill="#5b8def" />
+        {!reduceMotion && (
+          <ShootingStars
+            starColor="#5b8def"
+            trailColor="#8b5cf6"
+            minDelay={2200}
+            maxDelay={5500}
+          />
+        )}
+      </div>
 
       {/* Main Container */}
       <div className="relative z-10 mx-auto max-w-350 px-6 pb-16">
@@ -227,12 +264,9 @@ export default function JobPage() {
           synthesis={job.report?.synthesis ?? null}
           eyebrow={
             <div className="mb-3 flex items-center justify-between">
-              <a
-                href="/"
-                className="inline-flex items-center gap-2 text-sm text-muted no-underline hover:text-fg"
-              >
+              <Button href="/" variant="secondary" size="sm">
                 <ArrowLeft size={15} /> Back to Repositories
-              </a>
+              </Button>
               <span className="font-mono text-xs text-muted">
                 ID: {job.id.substring(0, 8)}
               </span>
@@ -253,13 +287,46 @@ export default function JobPage() {
             findings start above it. */}
         {!isFinished ? (
           <div className="mb-6 rounded-3xl border border-line bg-surface/30 p-6 backdrop-blur-md md:p-8">
-            <JobPipeline agentStatuses={agentStatuses} jobStatus={job.status} />
+            {/* Queued = worker not picked up yet: show the blurred skeleton.
+                The moment the job is (effectively) running, cross-fade to the
+                real pipeline and let agents light up one by one. */}
+            <AnimatePresence mode="wait" initial={false}>
+              {effectiveStatus === 'pending' ? (
+                <motion.div
+                  key="pipeline-skeleton"
+                  exit={
+                    reduceMotion ? undefined : { opacity: 0, filter: 'blur(6px)' }
+                  }
+                  transition={{ duration: 0.25 }}
+                >
+                  <JobPipelineSkeleton />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="pipeline"
+                  initial={
+                    reduceMotion ? false : { opacity: 0, filter: 'blur(6px)' }
+                  }
+                  animate={{ opacity: 1, filter: 'blur(0px)' }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <JobPipeline
+                    agentStatuses={agentStatuses}
+                    jobStatus={effectiveStatus}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="mt-8 flex flex-col items-stretch justify-between gap-4 border-t border-line pt-6 md:flex-row md:items-center">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface-2">
-                  {job.status === 'running' ? (
+                  {allAgentsFailed ? (
+                    <AlertTriangle className="text-red-400" size={16} />
+                  ) : effectiveStatus === 'running' ? (
                     <Activity className="text-glow-blue animate-pulse" size={16} />
+                  ) : effectiveStatus === 'pending' ? (
+                    <Loader2 className="animate-spin text-muted" size={16} />
                   ) : (
                     <AlertTriangle className="text-glow-amber" size={16} />
                   )}
@@ -277,7 +344,7 @@ export default function JobPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                {job.status === 'running' && (
+                {effectiveStatus === 'running' && !allAgentsFailed && (
                   <div className="max-w-70 flex-1 md:max-w-50">
                     <div className="progress-bar">
                       <motion.div
@@ -355,6 +422,11 @@ export default function JobPage() {
             )}
           </div>
         )}
+
+        {/* job:complete flips status to 'done' before the refetch carrying the
+            report lands — bridge that gap with a skeleton in the report's
+            silhouette so the dashboard fades in over it instead of popping. */}
+        {isFinished && !job.report && <ReportSkeleton />}
 
         {isFinished && job.report && (
           <ReportDashboard

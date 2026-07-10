@@ -60,32 +60,57 @@ export function ReportDashboard({
     ];
   }, [outputs]);
 
+  // Sections resolve from blur one after another (capped so below-the-fold
+  // content isn't held hostage to a long stagger queue).
+  const reveal = (order: number) => ({
+    initial: reduceMotion
+      ? false
+      : { opacity: 0, y: 14, filter: 'blur(10px)' as const },
+    animate: { opacity: 1, y: 0, filter: 'blur(0px)' as const },
+    transition: { duration: 0.45, delay: Math.min(order, 5) * 0.09 },
+  });
+
   return (
-    <motion.div
-      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="grid gap-6"
-    >
+    <div className="grid gap-6">
       {banner}
 
-      <KpiRow outputs={outputs} synthesis={report.synthesis} />
+      <motion.div {...reveal(0)}>
+        <KpiRow outputs={outputs} synthesis={report.synthesis} />
+      </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start">
+        {/* Nav stays outside the reveal wrappers — a transform/filter ancestor
+            would break its lg:sticky positioning. */}
         <SectionNav sections={sections} />
 
         <div className="grid min-w-0 gap-6">
-          <SummarySection outputs={outputs} report={report} />
-          <ArchitectureSection outputs={outputs} report={report} />
-          <SecuritySection outputs={outputs} report={report} />
-          <DependencySection outputs={outputs} report={report} />
-          <QualitySection outputs={outputs} report={report} />
-          <DocsSection outputs={outputs} />
-          <RecommendationsSection report={report} />
-          <RawMarkdownPanel report={report} />
+          <motion.div {...reveal(1)}>
+            <SummarySection outputs={outputs} report={report} />
+          </motion.div>
+          <motion.div {...reveal(2)}>
+            <ArchitectureSection outputs={outputs} report={report} />
+          </motion.div>
+          <motion.div {...reveal(3)}>
+            <SecuritySection outputs={outputs} report={report} />
+          </motion.div>
+          <motion.div {...reveal(4)}>
+            <DependencySection outputs={outputs} report={report} />
+          </motion.div>
+          <motion.div {...reveal(5)}>
+            <QualitySection outputs={outputs} report={report} />
+          </motion.div>
+          <motion.div {...reveal(6)}>
+            <DocsSection outputs={outputs} />
+          </motion.div>
+          <motion.div {...reveal(7)}>
+            <RecommendationsSection report={report} />
+          </motion.div>
+          <motion.div {...reveal(8)}>
+            <RawMarkdownPanel report={report} />
+          </motion.div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

@@ -35,13 +35,30 @@ export type AgentType =
   | 'quality'
   | 'docs';
 
+/**
+ * Token accounting for one agent run (mirrors libs/common/src/types/token-usage.types.ts).
+ *
+ * Four classes, not two. `input` is only the **uncached remainder** — with
+ * prompt caching on, most of an agent loop's input arrives as `cacheRead`. So
+ * `input + output` under-reports real spend, and gets more wrong the better
+ * caching works. Read `totalTokens`; don't do the arithmetic here.
+ */
+export interface TokenUsage {
+  input: number;
+  output: number;
+  cacheCreation?: number;
+  cacheRead?: number;
+}
+
 export interface AgentResultSummary {
   agentType: string;
   status: AgentResultStatus;
   error: string | null;
   /** The agent's JSON output, or null when the run failed. */
   rawOutput: unknown;
-  tokensUsed: { input: number; output: number };
+  tokensUsed: TokenUsage;
+  /** Total tokens processed by this agent — the number to display. */
+  totalTokens: number;
   durationMs: number | null;
 }
 
@@ -191,6 +208,18 @@ export interface ReportPayload {
   /** Null on reports generated before synthesis was persisted structurally. */
   synthesis: Synthesis | null;
   totalTokens: number;
+  /**
+   * Cost, computed server-side by the same helper the Markdown report uses, so
+   * the dashboard and the report can't disagree about the same job. The client
+   * used to recompute this and drifted the moment the backend was corrected.
+   *
+   * Optional: reports written before the field existed won't carry it.
+   */
+  estimatedCostUsd?: number;
+  /** Pre-formatted (`$0.576`). Prefer this over formatting the number yourself. */
+  estimatedCostLabel?: string;
+  /** The model `estimatedCostUsd` prices. */
+  model?: string;
 }
 
 export interface Job {
@@ -228,6 +257,25 @@ export type JobEvent =
       agentType: string;
       done: number;
       total: number;
+    }
+  /**
+   * Heartbeat from inside one agent's evidence loop, once per turn.
+   *
+   * `job:progress` only fires when an agent *finishes*, and an agent is now a
+   * tool loop that can work for minutes — so without this the UI correctly shows
+   * five agents running and then sits unchanged long enough to look hung.
+   *
+   * `activity` is mechanical ("reading auth.guard.ts"), derived from the tool
+   * calls — never model prose or reasoning.
+   */
+  | {
+      type: 'job:agent_activity';
+      jobId: string;
+      agentType: string;
+      /** 1-indexed. */
+      turn: number;
+      maxTurns: number;
+      activity: string;
     }
   | { type: 'job:complete'; jobId: string }
   | { type: 'job:failed'; jobId: string; reason: string };

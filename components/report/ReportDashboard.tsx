@@ -136,7 +136,7 @@ function RawMarkdownPanel({ report }: { report: ReportPayload }) {
         </span>
         <span className="flex items-center gap-2.5">
           <span className="font-mono text-xs text-muted">
-            {estimatedCost(report.totalTokens)} ·{' '}
+            {estimatedCost(report) ? `${estimatedCost(report)} · ` : ''}
             {report.totalTokens.toLocaleString()} tokens
           </span>
           <ChevronDown

@@ -62,11 +62,25 @@ export function healthBand(score: number): HealthBand {
 }
 
 /**
- * Haiku input pricing (~$0.80 / 1M tokens). The same approximation the report
- * renderer prints — kept identical so the dashboard and the Markdown agree.
+ * What a job cost, as reported by the API.
+ *
+ * This used to recompute it: `(totalTokens / 1e6) * 0.8`, commented "kept
+ * identical so the dashboard and the Markdown agree". It wasn't identical, and
+ * it couldn't stay identical — the backend fixed its own copy and the two
+ * instantly disagreed on screen for the same job. It was also wrong in three
+ * ways at once: an input-only rate, for a model that wasn't running, applied to
+ * input+output combined.
+ *
+ * The server computes it now (`libs/common/src/llm/pricing.ts`) and serves it on
+ * the report payload, so there is nothing here to drift.
+ *
+ * The fallback is for reports rendered before the field existed — showing
+ * nothing beats showing a number we know is wrong.
  */
-export function estimatedCost(totalTokens: number): string {
-  return `$${((totalTokens / 1_000_000) * 0.8).toFixed(4)}`;
+export function estimatedCost(report: {
+  estimatedCostLabel?: string | null;
+}): string | null {
+  return report.estimatedCostLabel ?? null;
 }
 
 export function formatDuration(ms: number | null | undefined): string | null {

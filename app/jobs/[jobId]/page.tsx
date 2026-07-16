@@ -14,6 +14,7 @@ import {
 } from '../../../lib/queries';
 import { AGENT_IDS, useJobProgressStore } from '../../../lib/stores/job-progress-store';
 import { JobPipeline, JobPipelineSkeleton } from '../../../components/JobPipeline';
+import { AgentActivityFeed } from '../../../components/AgentActivityFeed';
 import { ReportDashboard } from '../../../components/report/ReportDashboard';
 import { ReportHeader } from '../../../components/report/ReportHeader';
 import { ReportSkeleton } from '../../../components/report/ReportSkeleton';
@@ -47,8 +48,10 @@ export default function JobPage() {
   const progress = useJobProgressStore((s) => s.progress);
   const agentStatuses = useJobProgressStore((s) => s.agentStatuses);
   const failureReason = useJobProgressStore((s) => s.failureReason);
+  const agentActivity = useJobProgressStore((s) => s.agentActivity);
   const setProgress = useJobProgressStore((s) => s.setProgress);
   const setAgentStatus = useJobProgressStore((s) => s.setAgentStatus);
+  const setAgentActivity = useJobProgressStore((s) => s.setAgentActivity);
   const setAllAgents = useJobProgressStore((s) => s.setAllAgents);
   const markAgentRunningIfPending = useJobProgressStore(
     (s) => s.markAgentRunningIfPending,
@@ -128,6 +131,23 @@ export default function JobPage() {
             setAgentStatus(type, 'completed');
           }
           break;
+        case 'job:agent_activity': {
+          // The only event that fires *during* an agent's run. job:progress
+          // fires when an agent finishes; with a minute-scale tool loop that
+          // left five agents shown as running and nothing moving in between.
+          const type =
+            event.agentType === 'dependencies' ? 'dependency' : event.agentType;
+          setAgentActivity(type, {
+            turn: event.turn,
+            maxTurns: event.maxTurns,
+            activity: event.activity,
+          });
+          // Same repair as job:progress — visible work proves it's running.
+          queryClient.setQueryData<Job>(['job', jobId], (prev) =>
+            prev && prev.status === 'pending' ? { ...prev, status: 'running' } : prev,
+          );
+          break;
+        }
         case 'job:complete':
           setAllAgents('completed');
           void invalidateJob(jobId);
@@ -144,12 +164,14 @@ export default function JobPage() {
 
     socket.on('job:status', onEvent);
     socket.on('job:progress', onEvent);
+    socket.on('job:agent_activity', onEvent);
     socket.on('job:complete', onEvent);
     socket.on('job:failed', onEvent);
 
     return () => {
       socket.off('job:status', onEvent);
       socket.off('job:progress', onEvent);
+      socket.off('job:agent_activity', onEvent);
       socket.off('job:complete', onEvent);
       socket.off('job:failed', onEvent);
     };
@@ -159,6 +181,7 @@ export default function JobPage() {
     invalidateJob,
     setProgress,
     setAgentStatus,
+    setAgentActivity,
     setAllAgents,
     setFailureReason,
     markStaleRunningAsFailed,
@@ -317,6 +340,14 @@ export default function JobPage() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* The pipeline shows THAT agents are running; this shows what
+                they're doing. Without it, a minute-scale agent loop is
+                indistinguishable from a hang. */}
+            <AgentActivityFeed
+              agentStatuses={agentStatuses}
+              agentActivity={agentActivity}
+            />
 
             <div className="mt-8 flex flex-col items-stretch justify-between gap-4 border-t border-line pt-6 md:flex-row md:items-center">
               <div className="flex items-center gap-3">

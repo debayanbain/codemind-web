@@ -1,23 +1,35 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useClerk } from '@clerk/nextjs';
 import { LogOut } from 'lucide-react';
 import { Logo } from '../Logo';
 import type { Me } from '../../lib/types';
 
-export function DashboardNav({
-  me,
-  onLogout,
-  loggingOut,
-}: {
-  me: Me;
-  onLogout: () => void;
-  loggingOut: boolean;
-}) {
+export function DashboardNav({ me }: { me: Me }) {
+  const { signOut } = useClerk();
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [imgError, setImgError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const username = me.githubUsername ?? 'you';
+
+  // Clear the Clerk session, then HARD-navigate home. The hard load (not Clerk's
+  // soft `redirectUrl` push) is what resets the react-query cache, so getMe
+  // re-runs, 401s, and the landing page shows. With the soft redirect the
+  // dashboard kept its cached `me` and the UI looked still-signed-in, leaving
+  // the button stuck on "Signing out…".
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch {
+      // Session may already be invalid; navigate home regardless.
+    }
+    window.location.href = '/';
+  }
+  // Prefer a real name, then GitHub handle, then email — a Google-only user has
+  // no githubUsername, so without this chain they'd render as the 'you' fallback.
+  const username = me.name ?? me.githubUsername ?? me.email ?? 'you';
   const initial = username[0]?.toUpperCase() ?? '?';
 
   // Prefer the avatar stored at login; otherwise GitHub serves any user's
@@ -79,17 +91,23 @@ export function DashboardNav({
             <div className="dash-menu" role="menu">
               <div className="dash-menu-head">
                 <div className="dash-menu-name">{username}</div>
-                <div className="dash-menu-sub">Signed in</div>
+                {me.email && <div className="dash-menu-sub">{me.email}</div>}
+                {me.githubUsername && (
+                  <div className="dash-menu-sub">@{me.githubUsername} · GitHub</div>
+                )}
+                {!me.email && !me.githubUsername && (
+                  <div className="dash-menu-sub">Signed in</div>
+                )}
               </div>
               <button
                 type="button"
                 role="menuitem"
                 className="dash-menu-item"
-                disabled={loggingOut}
-                onClick={onLogout}
+                disabled={signingOut}
+                onClick={handleSignOut}
               >
                 <LogOut size={16} aria-hidden="true" />
-                {loggingOut ? 'Signing out…' : 'Sign out'}
+                {signingOut ? 'Signing out…' : 'Sign out'}
               </button>
             </div>
           )}

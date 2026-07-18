@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@clerk/nextjs';
 import {
   ApiError,
   analyzeRepo,
@@ -8,7 +9,6 @@ import {
   getShareLink,
   getSharedReport,
   listRepos,
-  logout,
   retryJob,
   revokeShareLink,
   stopAndRetryJob,
@@ -16,9 +16,20 @@ import {
 import type { Job, Me, Repo, ShareLink, SharedReport } from './types';
 
 export function useMeQuery() {
+  // Gate on Clerk being hydrated. Firing getMe before `window.Clerk` loads
+  // sends no Bearer token → 401 → this query caches `null` (looks signed out),
+  // and with retry:false + staleTime:Infinity it never re-runs, stranding a
+  // valid session on the landing page. `enabled: isLoaded` waits for the token.
+  const { isLoaded } = useAuth();
   return useQuery<Me | null>({
     queryKey: ['me'],
-    retry: false,
+    enabled: isLoaded,
+    // 401 is resolved to `null` in queryFn (terminal — signed out), so anything
+    // that throws to react-query here is transient (network / DB blip / 5xx).
+    // Retry a few times so a momentary Supabase hiccup doesn't throw a
+    // signed-in user back to the landing page.
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
     staleTime: Infinity,
     queryFn: async () => {
       try {
@@ -27,17 +38,6 @@ export function useMeQuery() {
         if (err instanceof ApiError && err.status === 401) return null;
         throw err;
       }
-    },
-  });
-}
-
-export function useLogoutMutation() {
-  const queryClient = useQueryClient();
-  return useMutation<void, ApiError, void>({
-    mutationFn: logout,
-    onSuccess: () => {
-      queryClient.setQueryData(['me'], null);
-      queryClient.removeQueries({ queryKey: ['repos'] });
     },
   });
 }

@@ -1,16 +1,19 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import { Search, FolderGit2, CheckCircle2, Loader2 } from 'lucide-react';
 import { ApiError } from '../lib/api';
+import { CanvasText } from '../components/ui/canvas-text';
 import {
   useAnalyzeRepoMutation,
-  useLogoutMutation,
   useMeQuery,
   useReposQuery,
 } from '../lib/queries';
 import { DashboardNav } from '../components/dashboard/DashboardNav';
+import { ConnectGithubCard } from '../components/dashboard/ConnectGithubCard';
 import { RepoBackground } from '../components/dashboard/RepoBackground';
 import { RepoLanguages } from '../components/dashboard/RepoLanguages';
 import { Nav } from '../components/landing/Nav';
@@ -29,11 +32,18 @@ import { Footer } from '../components/landing/Footer';
 
 export default function HomePage() {
   const router = useRouter();
+  // Clerk hydration gates the me-query (see useMeQuery). Treat "not loaded yet"
+  // as loading so a signed-in user never flashes the landing page mid-hydrate.
+  const { isLoaded: authLoaded } = useAuth();
   const { data: me, isLoading: meLoading } = useMeQuery();
-  const { data: repos, isLoading: reposLoading } = useReposQuery(!!me);
+  // Only fetch repos once GitHub is linked — otherwise the API answers 409 and
+  // we'd show an error instead of the Connect GitHub card.
+  const { data: repos, isLoading: reposLoading } = useReposQuery(
+    !!me && me.githubConnected,
+  );
   const analyzeMutation = useAnalyzeRepoMutation();
-  const logoutMutation = useLogoutMutation();
   const [query, setQuery] = useState('');
+  const reduceMotion = useReducedMotion();
 
   const stats = useMemo(() => {
     const list = repos ?? [];
@@ -62,7 +72,7 @@ export default function HomePage() {
     router.push(`/jobs/${jobId}`);
   }
 
-  if (meLoading) return <p className="page">Loading…</p>;
+  if (!authLoaded || meLoading) return <p className="page">Loading…</p>;
 
   if (!me) {
     return (
@@ -117,26 +127,53 @@ export default function HomePage() {
     );
   }
 
-  const username = me.githubUsername ?? 'there';
+  const username = me.name ?? me.githubUsername ?? 'there';
 
   return (
     <div className="dash">
-      <DashboardNav
-        me={me}
-        loggingOut={logoutMutation.isPending}
-        onLogout={() => logoutMutation.mutate()}
-      />
+      <DashboardNav me={me} />
 
       <main className="dash-main">
         <div className="dash-head">
           <div>
-            <h1 className="dash-title">Welcome back, {username}</h1>
+            <h1 className="dash-title">
+              Welcome back,{' '}
+              {reduceMotion ? (
+                username
+              ) : (
+                // Animated brand-gradient shimmer masked into the username.
+                // Base fill is glow-blue; blue→purple→white curves sweep over
+                // it — the same blue/purple as the logo mark and glass panels.
+                <CanvasText
+                  text={username}
+                  backgroundClassName="bg-[#5b8def]"
+                  colors={[
+                    'rgba(255, 255, 255, 0.95)',
+                    'rgba(199, 210, 254, 0.9)',
+                    'rgba(167, 139, 250, 0.9)',
+                    'rgba(255, 255, 255, 0.75)',
+                    'rgba(139, 92, 246, 0.75)',
+                    'rgba(199, 210, 254, 0.6)',
+                    'rgba(255, 255, 255, 0.5)',
+                    'rgba(167, 139, 250, 0.45)',
+                  ]}
+                  lineWidth={2}
+                  lineGap={3}
+                  curveIntensity={60}
+                  animationDuration={16}
+                />
+              )}
+            </h1>
             <p className="dash-subtitle">
               Pick a repository to run a multi-agent analysis.
             </p>
           </div>
         </div>
 
+        {!me.githubConnected ? (
+          <ConnectGithubCard />
+        ) : (
+          <>
         <div className="dash-stats">
           <StatCard
             icon={<FolderGit2 size={18} aria-hidden="true" />}
@@ -191,7 +228,11 @@ export default function HomePage() {
             {filteredRepos.map((repo) => {
               const [owner, name] = repo.fullName.split('/');
               return (
-                <li className="repo-card" key={repo.id}>
+                <li
+                  className="repo-card"
+                  key={repo.id}
+                  onPointerMove={trackPointer}
+                >
                   <div className="repo-card-media">
                     <RepoBackground
                       className="repo-card-art"
@@ -268,9 +309,20 @@ export default function HomePage() {
             })}
           </ul>
         )}
+          </>
+        )}
       </main>
     </div>
   );
+}
+
+/** Feeds the cursor position into CSS custom props so `.repo-card::before`
+ *  can track it. Written straight onto the node — no state, no re-render. */
+function trackPointer(e: React.PointerEvent<HTMLLIElement>) {
+  const el = e.currentTarget;
+  const rect = el.getBoundingClientRect();
+  el.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+  el.style.setProperty('--my', `${e.clientY - rect.top}px`);
 }
 
 function StatCard({

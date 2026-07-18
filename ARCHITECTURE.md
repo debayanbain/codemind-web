@@ -129,6 +129,22 @@ There is no `tailwind.config.js` — v4 takes its tokens from an `@theme` block 
 | `glow-green` | `#46d296` |
 | `glow-amber` | `#ffb347` |
 
+**Type is a three-face system.** Three fonts load through `next/font/google`, each exposed as a CSS variable on `<html>`: **Geist** for display, **Inter** for text, **JetBrains Mono** for code. Geist is assigned once — on the base `h1, h2, h3` rule — so every heading inherits the display face with no per-component wiring: landing section titles, report card headers, and the hero all resolve to Geist by cascade. Code is pinned to JetBrains Mono at weight 500 through a single `code, kbd, samp, pre` rule, which means the report's Tailwind `font-mono` chips (they're `<code>` elements) pick up the weight by inheritance too.
+
+The sizes are one `--fs-*` scale declared in `:root` and consumed by the hand-written CSS:
+
+| Role | Face / weight | Size |
+|---|---|---|
+| Hero | Geist 800 | `clamp(…, 5rem)` → 80px |
+| Section title | Geist 700 | `clamp(…, 2.625rem)` → 42px |
+| Subtitle | Inter 400 | `clamp(…, 1.375rem)` → 22px |
+| Paragraph | Inter 400 | 18px |
+| Small label | Inter 500 | 14px |
+| Button | Inter 600 | 15px |
+| Code | JetBrains Mono 500 | inherits |
+
+> **The scale is declared twice, same as the palette.** The hero `<h1>` is inline Tailwind (`md:text-[5rem] font-extrabold`) rather than the `.hero` class, because it's wrapped in the `GradualSpacing` motion component — so its 80px/800 is hand-matched to `--fs-hero`, not driven by it. One more value kept in sync by convention.
+
 > **Two things that aren't what they look like.** `components.json` declares shadcn/ui, but `components/ui/` holds Aceternity-style effect components plus one hand-written `button.tsx` — almost no shadcn primitives. Its `@/hooks` alias points at a directory that doesn't exist.
 >
 > `framer-motion` and `motion/react` are both installed and both used — the same package family under two import specifiers, split by which components were written when.

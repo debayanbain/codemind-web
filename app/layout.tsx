@@ -1,7 +1,16 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Geist, Inter, JetBrains_Mono } from 'next/font/google';
+import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import { Providers } from './providers';
+
+// Geist is the display face — hero + section titles. Inter carries body text,
+// JetBrains Mono carries code. All three exposed as CSS vars for globals.css.
+const geist = Geist({
+  subsets: ['latin'],
+  variable: '--font-geist',
+  display: 'swap',
+});
 
 const inter = Inter({
   subsets: ['latin'],
@@ -26,10 +35,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body suppressHydrationWarning>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html
+        lang="en"
+        className={`${geist.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+      >
+        <body suppressHydrationWarning>
+          <Providers>{children}</Providers>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

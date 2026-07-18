@@ -65,7 +65,19 @@
   --font-sans:
     var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     sans-serif;
+  --font-display:
+    var(--font-geist), var(--font-inter), -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
   --font-mono-stack: var(--font-mono), 'SF Mono', Menlo, monospace;
+
+  /* Type scale — Geist display / Inter text / JetBrains Mono code.
+     Display sizes clamp so the desktop peak degrades on narrow viewports. */
+  --fs-hero: clamp(3rem, 8vw, 5rem); /* → 80px */
+  --fs-section: clamp(1.9rem, 3.6vw, 2.625rem); /* → 42px */
+  --fs-subtitle: clamp(1.15rem, 2.2vw, 1.375rem); /* → 22px */
+  --fs-body: 1.125rem; /* 18px */
+  --fs-label: 0.875rem; /* 14px */
+  --fs-btn: 0.9375rem; /* 15px */
 }
 
 html {
@@ -89,14 +101,26 @@ body {
 h1,
 h2,
 h3 {
+  font-family: var(--font-display);
   line-height: 1.15;
   letter-spacing: -0.02em;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 p {
   color: var(--text-muted);
+  font-size: var(--fs-body);
   line-height: 1.6;
+}
+
+/* Code face is JetBrains Mono at weight 500 wherever raw markup carries it —
+   Tailwind's font-mono chips are <code> elements and inherit this too. */
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono-stack);
+  font-weight: 500;
 }
 
 a {
@@ -121,7 +145,7 @@ button:focus-visible {
   border: 1px solid transparent;
   background: var(--text);
   color: #101012;
-  font-size: 0.95rem;
+  font-size: var(--fs-btn);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
@@ -216,12 +240,13 @@ button:focus-visible {
 }
 
 .hero h1 {
-  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-size: var(--fs-hero);
+  font-weight: 800;
   margin: 0 0 1rem;
 }
 
 .hero p {
-  font-size: 1.1rem;
+  font-size: var(--fs-subtitle);
   max-width: 34rem;
   margin: 0 auto 2rem;
 }
@@ -321,6 +346,7 @@ button:focus-visible {
 }
 
 .repo-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
@@ -328,27 +354,77 @@ button:focus-visible {
   background: var(--surface);
   overflow: hidden;
   transition:
-    transform 150ms ease-out,
-    border-color 150ms ease-out,
-    box-shadow 150ms ease-out;
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 240ms ease-out,
+    box-shadow 240ms ease-out;
+}
+
+/* Pointer-tracked glow. --mx/--my come from onPointerMove on the card;
+   before the cursor moves it falls back to a centred top wash. */
+.repo-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease-out;
+  background: radial-gradient(
+    520px circle at var(--mx, 50%) var(--my, 0%),
+    rgba(91, 141, 239, 0.16),
+    rgba(139, 92, 246, 0.07) 24%,
+    transparent 46%
+  );
+}
+
+/* Brand gradient ring, drawn as a masked 1px border, revealed on hover. */
+.repo-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  padding: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease-out;
+  background: linear-gradient(135deg, var(--glow-blue), var(--glow-purple));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
 .repo-card:hover {
-  border-color: var(--border-hover);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  transform: translateY(-4px);
+  box-shadow:
+    0 18px 42px -18px rgba(91, 141, 239, 0.4),
+    0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+.repo-card:hover::before,
+.repo-card:hover::after {
+  opacity: 1;
 }
 
 .repo-card-media {
   position: relative;
   aspect-ratio: 5 / 2;
   background: var(--surface-2);
+  overflow: hidden;
 }
 
 .repo-card-art {
   width: 100%;
   height: 100%;
   display: block;
+  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.repo-card:hover .repo-card-art {
+  transform: scale(1.06);
 }
 
 .repo-card-media::after {
@@ -475,6 +551,8 @@ button:focus-visible {
 }
 
 .repo-card-body {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -714,12 +792,12 @@ button:focus-visible {
 }
 
 .landing-section-head h2 {
-  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+  font-size: var(--fs-section);
   margin: 0.75rem 0 1rem;
 }
 
 .landing-section-head p {
-  font-size: 1.05rem;
+  font-size: var(--fs-subtitle);
   margin: 0;
 }
 
@@ -787,13 +865,13 @@ button:focus-visible {
 }
 
 .final-cta-inner h2 {
-  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+  font-size: var(--fs-section);
   margin: 0 0 0.75rem;
 }
 
 .final-cta-inner p {
   margin: 0 0 1.75rem;
-  font-size: 1.05rem;
+  font-size: var(--fs-subtitle);
 }
 
 .final-cta .hero-actions {
@@ -1396,7 +1474,8 @@ button:focus-visible {
 }
 
 .stat-label {
-  font-size: 0.82rem;
+  font-size: var(--fs-label);
+  font-weight: 500;
   color: var(--text-muted);
 }
 
@@ -1463,7 +1542,88 @@ button:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .btn,
-  .repo-card {
+  .repo-card,
+  .repo-card-art {
     transition: none;
   }
+  .repo-card:hover,
+  .repo-card:hover .repo-card-art {
+    transform: none;
+  }
+}
+
+/* Connect-GitHub gate card — a next step, not an error, so blue/purple glow,
+   never the red error tone. Shown on the dashboard when GitHub isn't linked. */
+.connect-card {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1.6rem 1.75rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(91, 141, 239, 0.05);
+  overflow: hidden;
+}
+
+.connect-card::before {
+  content: '';
+  position: absolute;
+  inset: -50% 40% auto -10%;
+  height: 80%;
+  background: radial-gradient(
+    ellipse at center,
+    var(--glow-blue) 0%,
+    var(--glow-purple) 45%,
+    transparent 70%
+  );
+  filter: blur(60px);
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.connect-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 12px;
+  color: var(--glow-blue);
+  background: rgba(91, 141, 239, 0.12);
+  border: 1px solid rgba(91, 141, 239, 0.25);
+}
+
+.connect-card-body {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 260px;
+  min-width: 240px;
+}
+
+.connect-card-title {
+  font-size: 1.15rem;
+  margin: 0 0 0.35rem;
+}
+
+.connect-card-text {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.connect-card-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #ff8f8f;
+}
+
+.connect-card-btn {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  gap: 0.5rem;
 }

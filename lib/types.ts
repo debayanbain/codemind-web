@@ -1,5 +1,10 @@
 export interface Me {
   id: string;
+  /** False for a user who signed in with Google and hasn't linked GitHub yet —
+   *  gates the repo/analyze flow behind the Connect GitHub card. */
+  githubConnected: boolean;
+  email: string | null;
+  name: string | null;
   githubUsername: string | null;
   avatarUrl: string | null;
 }

@@ -2,3 +2,9 @@ node_modules
 .next
 .codegraph
 .DS_Store
+# clerk configuration (can include secrets)
+/.clerk/
+
+# env files — hold CLERK_SECRET_KEY etc. Never commit.
+.env
+.env*.local

@@ -56,6 +56,47 @@ const outPath = (y: number) => `M490 ${y} C580 ${y}, 590 210, 680 210`;
 const pulsePath = (y: number) =>
   `M150 210 C240 210, 250 ${y}, 340 ${y} L490 ${y} C580 ${y}, 590 210, 680 210`;
 
+/**
+ * A Loader2 that actually spins *inside* this SVG.
+ *
+ * The nodes live in one big <svg>, and framer-motion's `rotate` on an SVG <g>
+ * rotates around the SVG viewport origin — on SVG elements `transform-box` /
+ * `transform-origin` default to the view-box, not the element's own box — so the
+ * icon orbits the canvas corner instead of spinning in place, which reads as
+ * "not animating". SMIL <animateTransform> takes an explicit rotation centre in
+ * local units (the same mechanism the traveling pulse already uses), so it spins
+ * reliably. When `spin` is false (reduced motion) it renders a static icon.
+ */
+function SpinningLoader({
+  size,
+  color,
+  strokeWidth,
+  spin,
+}: {
+  size: number;
+  color: string;
+  strokeWidth: number;
+  spin: boolean;
+}) {
+  if (!spin) {
+    return <Loader2 size={size} color={color} strokeWidth={strokeWidth} />;
+  }
+  const c = size / 2;
+  return (
+    <g>
+      <Loader2 size={size} color={color} strokeWidth={strokeWidth} />
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from={`0 ${c} ${c}`}
+        to={`360 ${c} ${c}`}
+        dur="0.9s"
+        repeatCount="indefinite"
+      />
+    </g>
+  );
+}
+
 export function JobPipeline({ agentStatuses, jobStatus }: JobPipelineProps) {
   const reduceMotion = useReducedMotion();
 
@@ -177,12 +218,12 @@ export function JobPipeline({ agentStatuses, jobStatus }: JobPipelineProps) {
           />
           <g transform="translate(46, 202)">
             {jobStatus === 'running' ? (
-              <motion.g
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
-              >
-                <Loader2 size={16} color="#5b8def" strokeWidth={1.8} />
-              </motion.g>
+              <SpinningLoader
+                size={16}
+                color="#5b8def"
+                strokeWidth={1.8}
+                spin={!reduceMotion}
+              />
             ) : (
               <GitBranch size={16} color="#9a9a9e" strokeWidth={1.8} />
             )}
@@ -241,12 +282,12 @@ export function JobPipeline({ agentStatuses, jobStatus }: JobPipelineProps) {
                 ) : status === 'failed' ? (
                   <AlertTriangle size={16} color="#ff6363" strokeWidth={2.5} />
                 ) : status === 'running' ? (
-                  <motion.g
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
-                  >
-                    <Loader2 size={16} color={agent.color} strokeWidth={2} />
-                  </motion.g>
+                  <SpinningLoader
+                    size={16}
+                    color={agent.color}
+                    strokeWidth={2}
+                    spin={!reduceMotion}
+                  />
                 ) : (
                   <circle cx="8" cy="8" r="4.5" fill="rgba(255,255,255,0.15)" />
                 )}
@@ -319,13 +360,12 @@ export function JobPipeline({ agentStatuses, jobStatus }: JobPipelineProps) {
           )}
           <g transform="translate(698, 192)">
             {synthesizing ? (
-              <motion.g
-                animate={reduceMotion ? undefined : { rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
-                style={{ transformOrigin: '9px 9px' }}
-              >
-                <Loader2 size={18} color="#5b8def" strokeWidth={1.8} />
-              </motion.g>
+              <SpinningLoader
+                size={18}
+                color="#5b8def"
+                strokeWidth={1.8}
+                spin={!reduceMotion}
+              />
             ) : allAgentsFailed ? (
               <AlertTriangle size={18} color="#ff6363" strokeWidth={1.8} />
             ) : (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
@@ -14,6 +14,11 @@ import {
 } from '../lib/queries';
 import { DashboardNav } from '../components/dashboard/DashboardNav';
 import { ConnectGithubCard } from '../components/dashboard/ConnectGithubCard';
+import { AnalyzePublicRepo } from '../components/dashboard/AnalyzePublicRepo';
+import {
+  DashboardSkeleton,
+  RepoGridSkeleton,
+} from '../components/dashboard/DashboardSkeleton';
 import { RepoBackground } from '../components/dashboard/RepoBackground';
 import { RepoLanguages } from '../components/dashboard/RepoLanguages';
 import { Nav } from '../components/landing/Nav';
@@ -38,12 +43,23 @@ export default function HomePage() {
   const { data: me, isLoading: meLoading } = useMeQuery();
   // Only fetch repos once GitHub is linked — otherwise the API answers 409 and
   // we'd show an error instead of the Connect GitHub card.
-  const { data: repos, isLoading: reposLoading } = useReposQuery(
-    !!me && me.githubConnected,
-  );
+  const {
+    data: repos,
+    isLoading: reposLoading,
+    error: reposError,
+  } = useReposQuery(!!me && me.githubConnected);
   const analyzeMutation = useAnalyzeRepoMutation();
   const [query, setQuery] = useState('');
   const reduceMotion = useReducedMotion();
+  // Keep a repo's Analyze button loading through the route change to the job
+  // page, not just the POST — otherwise the spinner drops for the ~beat between
+  // the job being created and the navigation committing, and looks stuck.
+  const [isNavigating, startTransition] = useTransition();
+  const [navFor, setNavFor] = useState<string | null>(null);
+  const startingRepo = (fullName: string) =>
+    (analyzeMutation.isPending && analyzeMutation.variables === fullName) ||
+    (isNavigating && navFor === fullName);
+  const analyzeBusy = analyzeMutation.isPending || isNavigating;
 
   const stats = useMemo(() => {
     const list = repos ?? [];
@@ -64,7 +80,10 @@ export default function HomePage() {
 
   function handleAnalyze(repoFullName: string) {
     analyzeMutation.mutate(repoFullName, {
-      onSuccess: ({ jobId }) => router.push(`/jobs/${jobId}`),
+      onSuccess: ({ jobId }) => {
+        setNavFor(repoFullName);
+        startTransition(() => router.push(`/jobs/${jobId}`));
+      },
     });
   }
 
@@ -72,7 +91,7 @@ export default function HomePage() {
     router.push(`/jobs/${jobId}`);
   }
 
-  if (!authLoaded || meLoading) return <p className="page">Loading…</p>;
+  if (!authLoaded || meLoading) return <DashboardSkeleton />;
 
   if (!me) {
     return (
@@ -128,6 +147,12 @@ export default function HomePage() {
   }
 
   const username = me.name ?? me.githubUsername ?? 'there';
+  // Not linked, OR a token revoked/expired after connect (repos 409s
+  // github_not_connected) — either way the right column shows the Connect card.
+  const needsConnect =
+    !me.githubConnected ||
+    (reposError instanceof ApiError &&
+      reposError.code === 'github_not_connected');
 
   return (
     <div className="dash">
@@ -170,31 +195,42 @@ export default function HomePage() {
           </div>
         </div>
 
-        {!me.githubConnected ? (
-          <ConnectGithubCard />
-        ) : (
-          <>
-        <div className="dash-stats">
-          <StatCard
-            icon={<FolderGit2 size={18} aria-hidden="true" />}
-            label="Repositories"
-            value={stats.total}
-            tone="blue"
-          />
-          <StatCard
-            icon={<CheckCircle2 size={18} aria-hidden="true" />}
-            label="Analyzed"
-            value={stats.analyzed}
-            tone="green"
-          />
-          <StatCard
-            icon={<Loader2 size={18} aria-hidden="true" />}
-            label="In progress"
-            value={stats.running}
-            tone="amber"
-          />
-        </div>
+        {/* Stats reflect the user's own GitHub repos — only when connected. */}
+        {!needsConnect && (
+          <div className="dash-stats">
+            <StatCard
+              icon={<FolderGit2 size={18} aria-hidden="true" />}
+              label="Repositories"
+              value={stats.total}
+              tone="blue"
+            />
+            <StatCard
+              icon={<CheckCircle2 size={18} aria-hidden="true" />}
+              label="Analyzed"
+              value={stats.analyzed}
+              tone="green"
+            />
+            <StatCard
+              icon={<Loader2 size={18} aria-hidden="true" />}
+              label="In progress"
+              value={stats.running}
+              tone="amber"
+            />
+          </div>
+        )}
 
+        {needsConnect ? (
+          /* Not linked — paste panel on top, Connect card below it. */
+          <div className="dash-stack">
+            <AnalyzePublicRepo />
+            <ConnectGithubCard />
+          </div>
+        ) : (
+          /* Linked — paste panel beside the repo list. */
+          <div className="dash-grid">
+            <AnalyzePublicRepo />
+            <section className="dash-repos-panel">
+              <>
         {analyzeMutation.isError && (
           <div className="error-box">
             {analyzeMutation.error instanceof ApiError
@@ -218,7 +254,7 @@ export default function HomePage() {
         </div>
 
         {reposLoading ? (
-          <p className="dash-empty">Loading repositories…</p>
+          <RepoGridSkeleton />
         ) : filteredRepos.length === 0 ? (
           <p className="dash-empty">
             {query ? 'No repositories match your search.' : 'No repositories found.'}
@@ -273,11 +309,11 @@ export default function HomePage() {
                           </button>
                           <button
                             className="btn btn-secondary"
-                            disabled={analyzeMutation.isPending}
+                            disabled={analyzeBusy}
+                            aria-busy={startingRepo(repo.fullName)}
                             onClick={() => handleAnalyze(repo.fullName)}
                           >
-                            {analyzeMutation.isPending &&
-                            analyzeMutation.variables === repo.fullName
+                            {startingRepo(repo.fullName)
                               ? 'Starting…'
                               : 'Re-analyze'}
                           </button>
@@ -293,13 +329,11 @@ export default function HomePage() {
                       ) : (
                         <button
                           className="btn"
-                          disabled={analyzeMutation.isPending}
+                          disabled={analyzeBusy}
+                          aria-busy={startingRepo(repo.fullName)}
                           onClick={() => handleAnalyze(repo.fullName)}
                         >
-                          {analyzeMutation.isPending &&
-                          analyzeMutation.variables === repo.fullName
-                            ? 'Starting…'
-                            : 'Analyze'}
+                          {startingRepo(repo.fullName) ? 'Starting…' : 'Analyze'}
                         </button>
                       )}
                     </div>
@@ -309,7 +343,9 @@ export default function HomePage() {
             })}
           </ul>
         )}
-          </>
+              </>
+            </section>
+          </div>
         )}
       </main>
     </div>

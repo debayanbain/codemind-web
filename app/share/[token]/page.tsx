@@ -7,6 +7,7 @@ import { ApiError } from '../../../lib/api';
 import { useSharedReportQuery } from '../../../lib/queries';
 import { ReportDashboard } from '../../../components/report/ReportDashboard';
 import { ReportHeader } from '../../../components/report/ReportHeader';
+import { ReportSkeleton } from '../../../components/report/ReportSkeleton';
 import { StarsBackground } from '../../../components/ui/stars-background';
 
 export default function SharedReportPage() {
@@ -23,13 +24,24 @@ export default function SharedReportPage() {
     router.replace(`/login?next=${encodeURIComponent(`/share/${token}`)}`);
   }, [unauthenticated, router, token]);
 
-  if (isLoading || unauthenticated) {
+  if (unauthenticated) {
     return (
       <div className="flex min-h-dvh w-full flex-col items-center justify-center gap-4 bg-bg p-6">
         <Loader2 className="animate-spin text-glow-blue" size={32} />
         <p className="font-mono text-sm text-muted">
-          {unauthenticated ? 'Redirecting to sign in...' : 'Loading report...'}
+          Redirecting to sign in...
         </p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    // Mirror the report silhouette while it loads instead of a bare spinner.
+    return (
+      <div className="relative min-h-dvh w-full bg-bg">
+        <div className="relative z-10 mx-auto max-w-350 px-6 pt-6 pb-16">
+          <ReportSkeleton />
+        </div>
       </div>
     );
   }

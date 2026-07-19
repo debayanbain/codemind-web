@@ -234,6 +234,8 @@ export interface Job {
   status: JobStatus;
   createdAt: string;
   completedAt: string | null;
+  /** Persisted failure reason for a `failed` job — survives reload. */
+  error: string | null;
   report: ReportPayload | null;
   agentResults: AgentResultSummary[];
 }

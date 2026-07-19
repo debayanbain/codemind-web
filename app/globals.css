@@ -1528,6 +1528,156 @@ button:focus-visible {
   text-align: center;
 }
 
+/* Dashboard grid: the paste-any-public-repo panel beside the repo list /
+   connect card. Stacks on mobile; splits into a fixed sidebar + fluid list at
+   ≥900px. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .dash-grid {
+    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+  }
+}
+
+/* Let the repo grid shrink inside its column instead of forcing overflow. */
+.dash-repos-panel {
+  min-width: 0;
+}
+
+/* Not-linked state: paste panel stacked above the Connect card. */
+.dash-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+/* Paste-a-public-repo panel — purple/blue glow reads as an action, distinct
+   from the blue Connect card. */
+.analyze-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem 1.5rem 1.6rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+@media (min-width: 900px) {
+  .analyze-panel {
+    position: sticky;
+    top: 1.5rem;
+  }
+}
+
+.analyze-panel::before {
+  content: '';
+  position: absolute;
+  inset: -55% 25% auto -15%;
+  height: 75%;
+  background: radial-gradient(
+    ellipse at center,
+    var(--glow-purple) 0%,
+    var(--glow-blue) 45%,
+    transparent 70%
+  );
+  filter: blur(60px);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.analyze-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+
+.analyze-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 11px;
+  color: var(--glow-purple);
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.analyze-title {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.analyze-text {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.analyze-form {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.analyze-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.92rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 150ms ease-out;
+}
+
+.analyze-input:focus {
+  border-color: var(--glow-purple);
+}
+
+.analyze-input::placeholder {
+  color: var(--text-muted);
+}
+
+.analyze-btn {
+  height: 46px;
+  width: 100%;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.analyze-hint {
+  position: relative;
+  z-index: 1;
+  margin: 0.7rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.analyze-error {
+  position: relative;
+  z-index: 1;
+  margin: 0.7rem 0 0;
+  font-size: 0.82rem;
+  color: #ff8f8f;
+}
+
 @media (max-width: 640px) {
   .dash-stats {
     grid-template-columns: 1fr;

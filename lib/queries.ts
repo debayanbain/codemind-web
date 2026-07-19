@@ -48,6 +48,10 @@ export function useReposQuery(enabled: boolean) {
     queryFn: listRepos,
     enabled,
     staleTime: 60_000,
+    // 409 = github_not_connected — terminal, surfaced to swap in the Connect
+    // card, so don't retry it away. Transient errors still get a couple tries.
+    retry: (count, err) =>
+      !(err instanceof ApiError && err.status === 409) && count < 2,
   });
 }
 

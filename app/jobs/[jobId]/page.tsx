@@ -34,6 +34,20 @@ import {
   OctagonX,
 } from 'lucide-react';
 
+/**
+ * A pasted-URL failure is most often a private or mistyped repo (the tarball
+ * 404s), so turn that raw orchestrator reason into one actionable line.
+ * Everything else (size / file-count caps) is already clear — show as-is.
+ */
+function friendlyFailure(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  const r = reason.toLowerCase();
+  if (r.includes('404') || r.includes('not found')) {
+    return 'Repository not found, or it is private. Public repos analyze without connecting GitHub; a private repo needs a connected GitHub account with access.';
+  }
+  return reason;
+}
+
 export default function JobPage() {
   const params = useParams<{ jobId: string }>();
   const jobId = params.jobId;
@@ -437,7 +451,8 @@ export default function JobPage() {
                   <AlertTriangle size={18} /> Analysis Failed
                 </h3>
                 <p className="m-0 font-mono text-sm leading-relaxed text-red-200/80">
-                  {failureReason || 'An unknown framework or connection error occurred.'}
+                  {friendlyFailure(failureReason || job.error) ??
+                    'An unknown framework or connection error occurred.'}
                 </p>
               </div>
               <RetryButton

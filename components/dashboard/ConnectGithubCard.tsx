@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useReverification } from '@clerk/nextjs';
 import { GitBranch } from 'lucide-react';
 import { GithubMark } from '../BrandMarks';
 
@@ -19,43 +19,44 @@ export function ConnectGithubCard() {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function connect() {
-    if (!user) return;
-    setConnecting(true);
-    setError(null);
-    // Ask for repo scope explicitly on the link flow so private repos +
-    // tarballs work even if the connection default is narrower.
+  // Linking an OAuth provider is a sensitive operation: Clerk requires step-up
+  // "reverification" (the "additional verification to perform this operation"
+  // error) when the session's last verification is stale. useReverification
+  // wraps the action — it pops Clerk's verify UI when required and retries on
+  // success, instead of surfacing the raw error to the user.
+  const linkGithub = useReverification(async () => {
+    if (!user) throw new Error('Not signed in');
+    // Ask for repo scope explicitly so private repos + tarballs work even if the
+    // connection default is narrower.
     const params = {
       additionalScopes: ['repo', 'read:user'],
       redirectUrl: `${window.location.origin}/`,
     };
+    // A prior attempt cancelled at GitHub's consent leaves an *unverified* github
+    // account, and a second createExternalAccount would throw "already exists" —
+    // so reuse the existing link (reauthorize re-issues the OAuth redirect); if
+    // it can't reauthorize a never-authorized pending link, drop it and create a
+    // clean one.
+    const existing = user.externalAccounts.find((a) =>
+      a.provider.includes('github'),
+    );
+    if (!existing) {
+      return user.createExternalAccount({ strategy: 'oauth_github', ...params });
+    }
     try {
-      // A prior attempt cancelled at GitHub's consent leaves an *unverified*
-      // github account. A second createExternalAccount would throw "already
-      // exists", so reuse the existing link: reauthorize() re-issues the OAuth
-      // redirect (and re-consents for the repo scope). If it can't reauthorize
-      // a never-authorized pending link, drop it and create a clean one.
-      const external = await (async () => {
-        const existing = user.externalAccounts.find((a) =>
-          a.provider.includes('github'),
-        );
-        if (!existing) {
-          return user.createExternalAccount({
-            strategy: 'oauth_github',
-            ...params,
-          });
-        }
-        try {
-          return await existing.reauthorize(params);
-        } catch {
-          await existing.destroy();
-          return user.createExternalAccount({
-            strategy: 'oauth_github',
-            ...params,
-          });
-        }
-      })();
+      return await existing.reauthorize(params);
+    } catch {
+      await existing.destroy();
+      return user.createExternalAccount({ strategy: 'oauth_github', ...params });
+    }
+  });
 
+  async function connect() {
+    if (!user) return;
+    setConnecting(true);
+    setError(null);
+    try {
+      const external = await linkGithub();
       const redirect = external.verification?.externalVerificationRedirectURL;
       if (redirect) {
         window.location.href = redirect.toString();
@@ -64,6 +65,11 @@ export function ConnectGithubCard() {
       setError('Could not start the GitHub connection. Please try again.');
       setConnecting(false);
     } catch (e: unknown) {
+      // User dismissed the reverification prompt — not an error, just reset.
+      if ((e as { code?: string })?.code === 'reverification_cancelled') {
+        setConnecting(false);
+        return;
+      }
       setError(e instanceof Error ? e.message : 'Could not connect GitHub.');
       setConnecting(false);
     }

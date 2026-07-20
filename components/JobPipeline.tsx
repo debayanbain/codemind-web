@@ -12,10 +12,14 @@ import {
   AlertTriangle,
   Loader2,
 } from 'lucide-react';
+import type { JobStatus } from '../lib/types';
 
 interface JobPipelineProps {
   agentStatuses: Record<string, 'pending' | 'running' | 'completed' | 'failed'>;
-  jobStatus: 'pending' | 'running' | 'done' | 'failed';
+  // Widened to the full JobStatus union; in practice the pipeline only ever
+  // receives pending/running/done/failed (a cancelled job renders its own card
+  // instead), and it treats any non-running/done value as the idle state.
+  jobStatus: JobStatus;
 }
 
 const AGENTS = [

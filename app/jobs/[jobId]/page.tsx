@@ -7,12 +7,13 @@ import { ApiError } from '../../../lib/api';
 import { getSocket } from '../../../lib/socket';
 import type { Job, JobEvent } from '../../../lib/types';
 import {
+  useCancelJobMutation,
   useInvalidateJob,
   useJobQuery,
   useRetryJobMutation,
   useStopAndRetryJobMutation,
 } from '../../../lib/queries';
-import { AGENT_IDS, useJobProgressStore } from '../../../lib/stores/job-progress-store';
+import { useJobProgressStore } from '../../../lib/stores/job-progress-store';
 import { JobPipeline, JobPipelineSkeleton } from '../../../components/JobPipeline';
 import { AgentActivityFeed } from '../../../components/AgentActivityFeed';
 import { ReportDashboard } from '../../../components/report/ReportDashboard';
@@ -32,6 +33,7 @@ import {
   Activity,
   RotateCw,
   OctagonX,
+  Ban,
 } from 'lucide-react';
 
 /**
@@ -58,6 +60,7 @@ export default function JobPage() {
   const queryClient = useQueryClient();
   const retryMutation = useRetryJobMutation();
   const stopRetryMutation = useStopAndRetryJobMutation();
+  const cancelMutation = useCancelJobMutation();
 
   const progress = useJobProgressStore((s) => s.progress);
   const agentStatuses = useJobProgressStore((s) => s.agentStatuses);
@@ -67,9 +70,6 @@ export default function JobPage() {
   const setAgentStatus = useJobProgressStore((s) => s.setAgentStatus);
   const setAgentActivity = useJobProgressStore((s) => s.setAgentActivity);
   const setAllAgents = useJobProgressStore((s) => s.setAllAgents);
-  const markAgentRunningIfPending = useJobProgressStore(
-    (s) => s.markAgentRunningIfPending,
-  );
   const markStaleRunningAsFailed = useJobProgressStore(
     (s) => s.markStaleRunningAsFailed,
   );
@@ -97,25 +97,12 @@ export default function JobPage() {
     ?.filter((r) => r.status === 'failed')
     .map((r) => r.agentType) ?? [];
 
-  // Once the job is running, show every not-yet-finished agent as 'running'
-  // (pulsing) so the pipeline animates continuously through download/index and
-  // execution. Agents light up one at a time (staggered timeouts) so the
-  // pipeline reads as a sequence of workers spinning up, not a single frame
-  // flip. Each agent still flips to 'completed' individually via its own
-  // job:progress socket event (see onEvent below) — we do NOT derive per-agent
-  // status from the done *count* by array index, because the five agents run in
-  // parallel and don't finish in a fixed order.
-  useEffect(() => {
-    // progress !== null while still 'pending' means we missed the running
-    // status event but agent work is demonstrably happening — treat as running.
-    const running =
-      job?.status === 'running' || (job?.status === 'pending' && progress !== null);
-    if (!running) return;
-    const timers = AGENT_IDS.map((id, i) =>
-      setTimeout(() => markAgentRunningIfPending(id), i * 220),
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [job?.status, progress, markAgentRunningIfPending]);
+  // Agents run strictly one-at-a-time now (AGENT_CONCURRENCY=1 in the worker),
+  // so we deliberately do NOT mass-promote every pending agent to 'running'.
+  // The single active agent promotes itself the instant its first
+  // job:agent_activity lands (see setAgentActivity); the others stay 'pending'
+  // until their turn. That's what makes the pipeline show ONE spinner at a time
+  // instead of five, matching the real serial execution.
 
   // Subscribe to real-time events
   useEffect(() => {
@@ -264,10 +251,23 @@ export default function JobPage() {
     if (effectiveStatus === 'done') return 'Analysis complete';
     if (allAgentsFailed) return 'All agents failed — nothing to synthesize';
 
-    if (!progress) return 'Cloning and indexing repository...';
-    const running = Object.values(agentStatuses).filter((s) => s === 'running').length;
-    if (progress.done >= progress.total) return 'Synthesizing report...';
-    return `Analyzing — ${running} agent${running === 1 ? '' : 's'} running (${progress.done}/${progress.total} done)...`;
+    // Prefer live socket progress, but fall back to the durable per-agent
+    // statuses (restored from job.agentResults on load) so a RELOAD mid-run
+    // shows the real position — "3/5 done" or "Synthesizing…" — instead of
+    // snapping back to "Cloning and indexing". The server-side pipeline keeps
+    // running across a refresh; only this client state was reset.
+    const statuses = Object.values(agentStatuses);
+    const settled = statuses.filter(
+      (s) => s === 'completed' || s === 'failed',
+    ).length;
+    const running = statuses.filter((s) => s === 'running').length;
+    const done = progress?.done ?? settled;
+    const total = progress?.total ?? statuses.length;
+
+    if (done === 0 && running === 0)
+      return 'Cloning and indexing repository...';
+    if (done >= total) return 'Synthesizing report...';
+    return `Analyzing — ${running} agent${running === 1 ? '' : 's'} running (${done}/${total} done)...`;
   };
 
   return (
@@ -322,7 +322,34 @@ export default function JobPage() {
         {/* The pipeline is a *progress* visual. While the job runs it earns the
             fold; once the report exists it collapses to a one-line strip so the
             findings start above it. */}
-        {!isFinished ? (
+        {job.status === 'cancelled' ? (
+          <div className="mb-6 rounded-2xl border border-line bg-surface/40 p-6 backdrop-blur-md">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="m-0 mb-2 flex items-center gap-2 font-semibold text-fg">
+                  <Ban size={18} className="text-muted" /> Analysis Cancelled
+                </h3>
+                <p className="m-0 font-mono text-sm leading-relaxed text-muted">
+                  You cancelled this analysis, so no report was generated.
+                  Re-analyze to run it again from scratch.
+                </p>
+              </div>
+              <RetryButton
+                label="Re-analyze"
+                onClick={() => retryMutation.mutate(job.id)}
+                pending={retryMutation.isPending}
+              />
+            </div>
+            {retryMutation.isError && (
+              <p
+                className="mt-3 mb-0 font-mono text-xs text-red-300/90"
+                aria-live="polite"
+              >
+                Re-analyze failed: {retryMutation.error.message}
+              </p>
+            )}
+          </div>
+        ) : !isFinished ? (
           <div className="mb-6 rounded-3xl border border-line bg-surface/30 p-6 backdrop-blur-md md:p-8">
             {/* Queued = worker not picked up yet: show the blurred skeleton.
                 The moment the job is (effectively) running, cross-fade to the
@@ -402,27 +429,49 @@ export default function JobPage() {
                   </div>
                 )}
 
-                {/* Stuck job escape hatch — abort the current run and re-analyze
-                    from scratch. A wedged job looks identical to a healthy one,
-                    so this is available throughout pending/running. */}
                 {(job.status === 'running' || job.status === 'pending') && (
-                  <StopRetryButton
-                    pending={stopRetryMutation.isPending}
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          'Stop this analysis and restart it from scratch? Any in-progress work is discarded.',
+                  <>
+                    {/* Abort outright — no re-run. The "clicked Analyze by
+                        mistake" exit. Distinct from Stop & retry beside it. */}
+                    <CancelButton
+                      pending={cancelMutation.isPending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            'Cancel this analysis? Any in-progress work is discarded and no report is generated.',
+                          )
                         )
-                      )
-                        return;
-                      reset();
-                      stopRetryMutation.mutate(job.id);
-                    }}
-                  />
+                          return;
+                        reset();
+                        cancelMutation.mutate(job.id);
+                      }}
+                    />
+                    {/* Stuck job escape hatch — abort AND re-analyze from
+                        scratch. A wedged job looks identical to a healthy one,
+                        so this is available throughout pending/running. */}
+                    <StopRetryButton
+                      pending={stopRetryMutation.isPending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            'Stop this analysis and restart it from scratch? Any in-progress work is discarded.',
+                          )
+                        )
+                          return;
+                        reset();
+                        stopRetryMutation.mutate(job.id);
+                      }}
+                    />
+                  </>
                 )}
               </div>
             </div>
 
+            {cancelMutation.isError && (
+              <p className="mt-3 mb-0 font-mono text-xs text-red-300/90" aria-live="polite">
+                Cancel failed: {cancelMutation.error.message}
+              </p>
+            )}
             {stopRetryMutation.isError && (
               <p className="mt-3 mb-0 font-mono text-xs text-red-300/90" aria-live="polite">
                 Stop &amp; retry failed: {stopRetryMutation.error.message}
@@ -535,6 +584,32 @@ function RetryButton({
     >
       <RotateCw size={15} className={pending ? 'animate-spin' : ''} />
       {pending ? 'Retrying...' : label}
+    </button>
+  );
+}
+
+function CancelButton({
+  onClick,
+  pending,
+}: {
+  onClick: () => void;
+  pending: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className="btn btn-secondary shrink-0 text-sm border-red-500/40 bg-red-950/40 text-red-200 hover:bg-red-900/50 hover:text-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
+      onClick={onClick}
+      disabled={pending}
+      aria-busy={pending}
+      title="Cancel this run — no report is generated"
+    >
+      {pending ? (
+        <Loader2 size={15} className="animate-spin" />
+      ) : (
+        <Ban size={15} />
+      )}
+      {pending ? 'Cancelling...' : 'Cancel'}
     </button>
   );
 }

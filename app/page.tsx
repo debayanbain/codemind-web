@@ -394,6 +394,8 @@ function RepoStatusBadge({
       ? 'Analyzed'
       : status === 'running' || status === 'pending'
         ? 'Running'
-        : 'Failed';
+        : status === 'cancelled'
+          ? 'Cancelled'
+          : 'Failed';
   return <span className={`badge badge-${status}`}>{label}</span>;
 }

@@ -75,8 +75,11 @@ export function AgentActivityFeed({
             <span className="w-24 shrink-0 truncate font-medium text-fg">
               {label}
             </span>
-            <span className="w-14 shrink-0 font-mono text-[11px] tabular-nums text-muted">
-              {act.turn}/{act.maxTurns}
+            {/* Label as a turn count, not "N/M files" — the agent reads a
+                relevant subset of the graph, not every file (that's the whole
+                cost-control design), so a bare "2/16" reads misleadingly. */}
+            <span className="w-20 shrink-0 font-mono text-[11px] tabular-nums text-muted">
+              turn {act.turn}/{act.maxTurns}
             </span>
             {/* Crossfade the text only — animating the row would move its
                 neighbours. Keyed on the phrase so an unchanged phrase across

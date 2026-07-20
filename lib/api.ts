@@ -108,6 +108,17 @@ export function stopAndRetryJob(
   return apiFetch(`/jobs/${jobId}/stop-retry`, { method: 'POST' });
 }
 
+/**
+ * Cancel a pending/running job outright. Unlike stopAndRetryJob it does NOT
+ * re-run — the server fences the run (bumps the epoch so in-flight agents stop)
+ * and moves the job to the terminal `cancelled` state.
+ */
+export function cancelJob(
+  jobId: string,
+): Promise<{ jobId: string; status: string }> {
+  return apiFetch(`/jobs/${jobId}/cancel`, { method: 'POST' });
+}
+
 /** The job's live share link, or null if the owner never created one. */
 export function getShareLink(jobId: string): Promise<ShareLink | null> {
   return apiFetch<ShareLink | null>(`/jobs/${jobId}/share`);

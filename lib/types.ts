@@ -29,7 +29,13 @@ export interface Repo {
   lastJobStatus: JobStatus | null;
 }
 
-export type JobStatus = 'pending' | 'running' | 'done' | 'failed';
+export type JobStatus =
+  | 'pending'
+  | 'running'
+  | 'done'
+  | 'failed'
+  // User aborted a pending/running job. Terminal; never has a report.
+  | 'cancelled';
 
 export type AgentResultStatus = 'success' | 'failed';
 

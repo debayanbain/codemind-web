@@ -3,6 +3,7 @@ import { useAuth } from '@clerk/nextjs';
 import {
   ApiError,
   analyzeRepo,
+  cancelJob,
   createShareLink,
   getJob,
   getMe,
@@ -73,6 +74,7 @@ export function useJobQuery(jobId: string) {
     refetchInterval: (query) => {
       const job = query.state.data;
       if (job?.status === 'failed') return false;
+      if (job?.status === 'cancelled') return false;
       if (job?.status === 'done' && job.report) return false;
       return 3000;
     },
@@ -100,6 +102,17 @@ export function useStopAndRetryJobMutation() {
   const queryClient = useQueryClient();
   return useMutation<{ jobId: string; status: string }, ApiError, string>({
     mutationFn: stopAndRetryJob,
+    onSuccess: (_, jobId) =>
+      queryClient.invalidateQueries({ queryKey: ['job', jobId] }),
+  });
+}
+
+/** Cancel a pending/running job outright (no re-run) — the "clicked Analyze by
+ * mistake" abort. */
+export function useCancelJobMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<{ jobId: string; status: string }, ApiError, string>({
+    mutationFn: cancelJob,
     onSuccess: (_, jobId) =>
       queryClient.invalidateQueries({ queryKey: ['job', jobId] }),
   });

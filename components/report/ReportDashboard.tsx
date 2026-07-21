@@ -23,10 +23,14 @@ export function ReportDashboard({
   agentResults,
   /** Rendered above the KPI row — partial-failure banners, live pipeline, etc. */
   banner,
+  /** Optional right-rail (the repo chat). Sticky beside the report on wide
+      screens; stacked as a bounded panel below it otherwise. */
+  chat,
 }: {
   report: ReportPayload;
   agentResults: AgentResultSummary[];
   banner?: ReactNode;
+  chat?: ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
   const outputs = useMemo(() => agentOutputs(agentResults), [agentResults]);
@@ -72,38 +76,57 @@ export function ReportDashboard({
     <div className="grid gap-6">
       {banner}
 
+      {/* KPI row spans the full width so the five tiles never get squeezed by
+          the chat rail. */}
       <motion.div {...reveal(0)}>
         <KpiRow outputs={outputs} synthesis={report.synthesis} />
       </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start">
-        {/* Nav stays outside the reveal wrappers — a transform/filter ancestor
-            would break its lg:sticky positioning. */}
-        <SectionNav sections={sections} />
+      {/* Report (nav + sections) on the left; chat rail on the right at ≥xl,
+          stacked below on narrower screens. One shared grid keeps every column
+          aligned to the same baseline. */}
+      <div
+        className={
+          chat
+            ? 'grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start'
+            : 'grid gap-6'
+        }
+      >
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start">
+          {/* Nav stays outside the reveal wrappers — a transform/filter ancestor
+              would break its lg:sticky positioning. */}
+          <SectionNav sections={sections} />
 
-        <div className="grid min-w-0 gap-6">
-          <motion.div {...reveal(1)}>
-            <SummarySection outputs={outputs} report={report} />
-          </motion.div>
-          <motion.div {...reveal(2)}>
-            <ArchitectureSection outputs={outputs} report={report} />
-          </motion.div>
-          <motion.div {...reveal(3)}>
-            <SecuritySection outputs={outputs} report={report} />
-          </motion.div>
-          <motion.div {...reveal(4)}>
-            <DependencySection outputs={outputs} report={report} />
-          </motion.div>
-          <motion.div {...reveal(5)}>
-            <QualitySection outputs={outputs} report={report} />
-          </motion.div>
-          <motion.div {...reveal(6)}>
-            <DocsSection outputs={outputs} />
-          </motion.div>
-          <motion.div {...reveal(7)}>
-            <RecommendationsSection report={report} />
-          </motion.div>
+          <div className="grid min-w-0 gap-6">
+            <motion.div {...reveal(1)}>
+              <SummarySection outputs={outputs} report={report} />
+            </motion.div>
+            <motion.div {...reveal(2)}>
+              <ArchitectureSection outputs={outputs} report={report} />
+            </motion.div>
+            <motion.div {...reveal(3)}>
+              <SecuritySection outputs={outputs} report={report} />
+            </motion.div>
+            <motion.div {...reveal(4)}>
+              <DependencySection outputs={outputs} report={report} />
+            </motion.div>
+            <motion.div {...reveal(5)}>
+              <QualitySection outputs={outputs} report={report} />
+            </motion.div>
+            <motion.div {...reveal(6)}>
+              <DocsSection outputs={outputs} />
+            </motion.div>
+            <motion.div {...reveal(7)}>
+              <RecommendationsSection report={report} />
+            </motion.div>
+          </div>
         </div>
+
+        {chat && (
+          <aside className="h-[600px] min-w-0 xl:sticky xl:top-20 xl:h-[calc(100vh-6.5rem)]">
+            {chat}
+          </aside>
+        )}
       </div>
     </div>
   );

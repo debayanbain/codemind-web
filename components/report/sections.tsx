@@ -92,7 +92,7 @@ export function SummarySection({
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
         <div className="min-w-0">
-          <p className="m-0 text-[0.95rem] leading-relaxed text-fg/85">
+          <p className="m-0 text-base leading-relaxed font-poppins text-fg/90">
             {synthesis?.executiveSummary ??
               'This report predates structured synthesis. The full write-up is in the Markdown below.'}
           </p>
@@ -108,7 +108,7 @@ export function SummarySection({
             </FactRow>
           </dl>
         </div>
-        {gauge && <DiagramFigure diagram={gauge} className="lg:w-95" />}
+        {gauge && <DiagramFigure diagram={gauge} className="lg:w-80 w-full shrink-0" />}
       </div>
     </ReportCard>
   );

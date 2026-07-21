@@ -30,18 +30,18 @@ export function ReportHeader({
   const band = score === undefined ? null : healthBand(score);
 
   return (
-    <header className="sticky top-0 z-30 -mx-6 mb-6 border-b border-line bg-bg/80 px-6 py-3.5 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 -mx-4 sm:-mx-6 md:-mx-8 mb-6 border-b border-line bg-bg/85 px-4 sm:px-6 md:px-8 py-3.5 backdrop-blur-xl transition-all">
       {eyebrow}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-2 text-muted sm:inline-flex"
+            className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-2/80 text-glow-blue sm:inline-flex"
             aria-hidden="true"
           >
-            <GitBranch size={16} />
+            <GitBranch size={17} />
           </span>
           <div className="min-w-0">
-            <h1 className="m-0 truncate text-lg font-semibold tracking-tight text-fg md:text-xl">
+            <h1 className="m-0 truncate text-lg font-semibold tracking-tight text-fg md:text-xl font-poppins">
               {repoFullName}
             </h1>
             <p className="m-0 truncate font-mono text-xs text-muted">
@@ -52,9 +52,7 @@ export function ReportHeader({
 
         <div className="flex flex-wrap items-center gap-2">
           {band && score !== undefined && (
-            // Score is stated as a number and a word — the colour is
-            // reinforcement, never the only carrier of meaning.
-            <Chip tone={band.tone} className="tabular-nums">
+            <Chip tone={band.tone} className="tabular-nums font-poppins font-medium">
               {score}/100 · {band.label}
             </Chip>
           )}

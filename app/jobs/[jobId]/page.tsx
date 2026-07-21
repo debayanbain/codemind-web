@@ -17,6 +17,7 @@ import { useJobProgressStore } from '../../../lib/stores/job-progress-store';
 import { JobPipeline, JobPipelineSkeleton } from '../../../components/JobPipeline';
 import { AgentActivityFeed } from '../../../components/AgentActivityFeed';
 import { ReportDashboard } from '../../../components/report/ReportDashboard';
+import { RepoChat } from '../../../components/report/RepoChat';
 import { ReportHeader } from '../../../components/report/ReportHeader';
 import { ReportSkeleton } from '../../../components/report/ReportSkeleton';
 import { ExportMenu } from '../../../components/report/ExportMenu';
@@ -293,7 +294,7 @@ export default function JobPage() {
       </div>
 
       {/* Main Container */}
-      <div className="relative z-10 mx-auto max-w-350 px-6 pb-16">
+      <div className="relative z-10 mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8 pb-16">
         <ReportHeader
           repoFullName={job.repoFullName}
           status={job.status}
@@ -527,6 +528,13 @@ export default function JobPage() {
           <ReportDashboard
             report={job.report}
             agentResults={job.agentResults}
+            chat={
+              <RepoChat
+                jobId={job.id}
+                agentResults={job.agentResults}
+                synthesis={job.report.synthesis}
+              />
+            }
             banner={
               failedAgentTypes.length > 0 ? (
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-6 backdrop-blur-md">

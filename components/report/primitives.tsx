@@ -25,10 +25,10 @@ export function ReportCard({
     // under it when the section nav jumps to it.
     <section
       id={id}
-      className="scroll-mt-28 rounded-2xl border border-line bg-surface/40 backdrop-blur-sm"
+      className="scroll-mt-24 rounded-2xl border border-line bg-surface/50 backdrop-blur-md overflow-hidden transition-all"
     >
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 md:px-6">
-        <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold tracking-tight text-fg">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface-2/30 px-5 py-4 md:px-6">
+        <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold font-poppins tracking-tight text-fg">
           {icon}
           {title}
         </h2>
@@ -61,7 +61,7 @@ export function Chip({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-xs',
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-poppins text-xs font-medium',
         tones[tone],
         className,
       )}
@@ -98,7 +98,7 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <p className="m-0 rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
+    <p className="m-0 rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm font-poppins text-muted">
       {children}
     </p>
   );
@@ -114,8 +114,8 @@ export function FactRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line py-2.5 last:border-0">
-      <dt className="text-sm text-muted">{label}</dt>
+    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line/60 py-2.5 last:border-0">
+      <dt className="text-sm font-poppins text-muted">{label}</dt>
       <dd className="m-0 text-right font-mono text-sm text-fg">{children}</dd>
     </div>
   );
@@ -153,13 +153,13 @@ export function DiagramFigure({
   }
 
   return (
-    <figure className={cn('m-0', className)}>
+    <figure className={cn('m-0 w-full', className)}>
       <div
-        className="cm-diagram overflow-x-auto rounded-xl border border-line bg-black/20 p-4"
+        className="cm-diagram w-full overflow-hidden rounded-xl border border-line bg-surface-2/40 p-4 sm:p-5 flex items-center justify-center"
         // eslint-disable-next-line react/no-danger -- inert, server-rendered, server-sanitized SVG
         dangerouslySetInnerHTML={{ __html: diagram.svg }}
       />
-      <figcaption className="mt-2 text-center text-xs text-muted">
+      <figcaption className="mt-2 text-center text-xs font-poppins text-muted">
         {diagram.title}
       </figcaption>
     </figure>

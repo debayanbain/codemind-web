@@ -75,8 +75,9 @@ export function getMe(): Promise<Me> {
   return apiFetch<Me>('/auth/me');
 }
 
-export function listRepos(): Promise<Repo[]> {
-  return apiFetch<Repo[]>('/repos');
+/** `forceRefresh` bypasses the server-side Redis cache and rebuilds from GitHub. */
+export function listRepos(forceRefresh = false): Promise<Repo[]> {
+  return apiFetch<Repo[]>(`/repos${forceRefresh ? '?refresh=1' : ''}`);
 }
 
 export function analyzeRepo(
@@ -117,6 +118,31 @@ export function cancelJob(
   jobId: string,
 ): Promise<{ jobId: string; status: string }> {
   return apiFetch(`/jobs/${jobId}/cancel`, { method: 'POST' });
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  /** True when the answer was grounded on the live code graph, not just the report. */
+  usedGraph: boolean;
+}
+
+/**
+ * Ask a grounded question about a job's repository. The API retrieves the
+ * relevant code from the graph (cheap) and answers from it + the report.
+ */
+export function chatWithRepo(
+  jobId: string,
+  messages: ChatMessage[],
+): Promise<ChatResponse> {
+  return apiFetch<ChatResponse>(`/jobs/${jobId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ messages }),
+  });
 }
 
 /** The job's live share link, or null if the owner never created one. */

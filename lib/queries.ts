@@ -46,9 +46,12 @@ export function useMeQuery() {
 export function useReposQuery(enabled: boolean) {
   return useQuery<Repo[]>({
     queryKey: ['repos'],
-    queryFn: listRepos,
+    queryFn: () => listRepos(),
     enabled,
-    staleTime: 60_000,
+    // Matches the server-side Redis TTL — in-app navigation reuses the cached
+    // list instead of refetching. A full reload still hits the API, which now
+    // answers from Redis. The Refresh button forces a rebuild past both.
+    staleTime: 300_000,
     // 409 = github_not_connected — terminal, surfaced to swap in the Connect
     // card, so don't retry it away. Transient errors still get a couple tries.
     retry: (count, err) =>

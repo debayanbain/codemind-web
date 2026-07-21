@@ -1,11 +1,19 @@
 import type { Metadata } from 'next';
-import { Geist, Inter, JetBrains_Mono } from 'next/font/google';
+import { Geist, Inter, JetBrains_Mono, Poppins } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import { Providers } from './providers';
 
-// Geist is the display face — hero + section titles. Inter carries body text,
-// JetBrains Mono carries code. All three exposed as CSS vars for globals.css.
+// Poppins is the body face across the app. Geist stays the display face for
+// hero + section titles; JetBrains Mono carries code. Inter remains as a
+// fallback var. All exposed as CSS vars for globals.css.
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-poppins',
+  display: 'swap',
+});
+
 const geist = Geist({
   subsets: ['latin'],
   variable: '--font-geist',
@@ -38,7 +46,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={`${geist.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+        className={`${poppins.variable} ${geist.variable} ${inter.variable} ${jetbrainsMono.variable}`}
       >
         <body suppressHydrationWarning>
           <Providers>{children}</Providers>

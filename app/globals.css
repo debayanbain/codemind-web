@@ -63,19 +63,19 @@
   --glow-blue: #5b8def;
   --glow-purple: #8b5cf6;
   --font-sans:
-    var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    sans-serif;
+    var(--font-poppins), var(--font-inter), -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
   --font-display:
-    var(--font-geist), var(--font-inter), -apple-system, BlinkMacSystemFont,
+    var(--font-poppins), var(--font-geist), var(--font-inter), -apple-system, BlinkMacSystemFont,
     'Segoe UI', Roboto, sans-serif;
   --font-mono-stack: var(--font-mono), 'SF Mono', Menlo, monospace;
 
-  /* Type scale — Geist display / Inter text / JetBrains Mono code.
+  /* Type scale — Poppins body and display / JetBrains Mono code.
      Display sizes clamp so the desktop peak degrades on narrow viewports. */
   --fs-hero: clamp(3rem, 8vw, 5rem); /* → 80px */
-  --fs-section: clamp(1.9rem, 3.6vw, 2.625rem); /* → 42px */
-  --fs-subtitle: clamp(1.15rem, 2.2vw, 1.375rem); /* → 22px */
-  --fs-body: 1.125rem; /* 18px */
+  --fs-section: clamp(1.8rem, 3.2vw, 2.4rem); /* → 38px */
+  --fs-subtitle: clamp(1.1rem, 2vw, 1.3rem); /* → 21px */
+  --fs-body: 1rem; /* 16px */
   --fs-label: 0.875rem; /* 14px */
   --fs-btn: 0.9375rem; /* 15px */
 }
@@ -100,17 +100,20 @@ body {
 
 h1,
 h2,
-h3 {
-  font-family: var(--font-display);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  font-weight: 700;
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-poppins), var(--font-display), sans-serif;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 600;
 }
 
 p {
   color: var(--text-muted);
   font-size: var(--fs-body);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 /* Code face is JetBrains Mono at weight 500 wherever raw markup carries it —
@@ -339,9 +342,9 @@ button:focus-visible {
 .repo-list {
   list-style: none;
   padding: 0;
-  margin: 1.5rem 0;
+  margin: 1.5rem 0 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.25rem;
 }
 
@@ -411,7 +414,7 @@ button:focus-visible {
 
 .repo-card-media {
   position: relative;
-  aspect-ratio: 5 / 2;
+  aspect-ratio: 16 / 5;
   background: var(--surface-2);
   overflow: hidden;
 }
@@ -691,6 +694,19 @@ button:focus-visible {
   border: 1px solid var(--border);
   border-radius: 16px;
   overflow-x: auto;
+}
+
+/* Rendered D2/chart SVGs: center them and let them scale down to their
+   container instead of forcing horizontal scroll on wide diagrams. */
+.cm-diagram {
+  display: flex;
+  justify-content: center;
+}
+.cm-diagram svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
 }
 
 /* Landing: Nav */
@@ -1412,9 +1428,15 @@ button:focus-visible {
 }
 
 .dash-main {
-  max-width: 1100px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
+}
+
+@media (min-width: 1024px) {
+  .dash-main {
+    padding: 2.5rem 2rem 4rem;
+  }
 }
 
 .dash-head {
@@ -1498,6 +1520,40 @@ button:focus-visible {
   margin: 0;
 }
 
+.dash-list-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.dash-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease-out,
+    color 150ms ease-out;
+}
+
+.dash-refresh:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.dash-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .dash-search {
   display: inline-flex;
   align-items: center;
@@ -1533,23 +1589,7 @@ button:focus-visible {
   text-align: center;
 }
 
-/* Dashboard grid: the paste-any-public-repo panel beside the repo list /
-   connect card. Stacks on mobile; splits into a fixed sidebar + fluid list at
-   ≥900px. */
-.dash-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.25rem;
-  align-items: start;
-}
-
-@media (min-width: 900px) {
-  .dash-grid {
-    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
-  }
-}
-
-/* Let the repo grid shrink inside its column instead of forcing overflow. */
+/* Let the repo grid shrink to fit instead of forcing overflow. */
 .dash-repos-panel {
   min-width: 0;
 }
@@ -1569,13 +1609,6 @@ button:focus-visible {
   border-radius: 18px;
   border: 1px solid var(--border);
   background: rgba(139, 92, 246, 0.05);
-}
-
-@media (min-width: 900px) {
-  .analyze-panel {
-    position: sticky;
-    top: 1.5rem;
-  }
 }
 
 .analyze-panel::before {
@@ -1599,8 +1632,15 @@ button:focus-visible {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  margin-bottom: 0.5rem;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.analyze-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .analyze-icon {
@@ -1624,7 +1664,7 @@ button:focus-visible {
 .analyze-text {
   position: relative;
   z-index: 1;
-  margin: 0 0 1rem;
+  margin: 0;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
@@ -1681,6 +1721,186 @@ button:focus-visible {
   margin: 0.7rem 0 0;
   font-size: 0.82rem;
   color: #ff8f8f;
+}
+
+/* Slim horizontal variant — full-width bar above the repo grid (linked state).
+   Head on the left, the URL form pinned to the right; wraps to a stack on
+   narrow screens. Comes after the sticky rule above so it wins the override. */
+.analyze-bar {
+  position: static;
+  top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.analyze-bar .analyze-head {
+  margin-bottom: 0;
+  flex: 0 1 auto;
+}
+
+.analyze-bar .analyze-text {
+  font-size: 0.82rem;
+}
+
+.analyze-bar .analyze-form {
+  flex: 1 1 340px;
+  flex-direction: row;
+  align-items: center;
+  margin-left: auto;
+  max-width: 560px;
+}
+
+.analyze-bar .analyze-input {
+  flex: 1;
+}
+
+.analyze-bar .analyze-btn {
+  width: auto;
+  flex: none;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+/* Keep the bar to one line of chrome — drop the example hint; errors still show
+   and take the full row below the controls. */
+.analyze-bar .analyze-hint {
+  display: none;
+}
+
+.analyze-bar .analyze-error {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+
+@media (max-width: 620px) {
+  .analyze-bar .analyze-text {
+    display: none;
+  }
+  .analyze-bar .analyze-form {
+    flex-basis: 100%;
+  }
+}
+
+/* Markdown inside a chat answer bubble — compact, readable, on-theme. */
+/* Chat answer markdown — small, tight, aligned. One base size on the container
+   so every child inherits it (no oversized prose blockquotes). min-width:0 +
+   overflow-wrap let long file paths / identifiers wrap instead of forcing the
+   whole panel to scroll sideways. */
+.chat-answer {
+  font-size: 12.5px;
+  line-height: 1.5;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.chat-answer :not(pre) > code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.chat-answer > :first-child {
+  margin-top: 0;
+}
+.chat-answer > :last-child {
+  margin-bottom: 0;
+}
+.chat-answer p {
+  margin: 0 0 0.55rem;
+  font-size: inherit;
+  line-height: 1.5;
+}
+.chat-answer ul,
+.chat-answer ol {
+  margin: 0 0 0.55rem;
+  padding-left: 1.05rem;
+}
+.chat-answer li {
+  margin: 0.15rem 0;
+  font-size: inherit;
+  line-height: 1.45;
+}
+.chat-answer h1,
+.chat-answer h2,
+.chat-answer h3,
+.chat-answer h4 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.55rem 0 0.3rem;
+}
+.chat-answer blockquote {
+  margin: 0 0 0.55rem;
+  padding: 0.15rem 0 0.15rem 0.7rem;
+  border-left: 2px solid var(--glow-blue);
+  color: var(--text-muted);
+  font-size: 0.95em;
+  font-style: italic;
+}
+.chat-answer blockquote p {
+  margin: 0;
+}
+.chat-answer code {
+  font-family: var(--font-mono-stack);
+  font-size: 0.85em;
+  padding: 0.08em 0.32em;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.chat-answer pre {
+  margin: 0 0 0.55rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  /* Code blocks scroll inside their own box rather than widening the bubble. */
+  max-width: 100%;
+  overflow-x: auto;
+}
+.chat-answer pre code {
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.chat-answer pre code {
+  font-size: 0.85em;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.chat-answer a {
+  color: var(--glow-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.chat-answer strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Blinking type caret shown while an answer is being revealed. */
+.chat-caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--glow-blue);
+  border-radius: 1px;
+  animation: chat-caret-blink 1s steps(2, start) infinite;
+}
+@keyframes chat-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-caret {
+    animation: none;
+  }
 }
 
 @media (max-width: 640px) {

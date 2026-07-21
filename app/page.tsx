@@ -4,8 +4,10 @@ import { useMemo, useState, useTransition } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { Search, FolderGit2, CheckCircle2, Loader2 } from 'lucide-react';
-import { ApiError } from '../lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { Search, FolderGit2, CheckCircle2, Clock, RotateCw } from 'lucide-react';
+import { ApiError, listRepos } from '../lib/api';
+import type { Repo } from '../lib/types';
 import { CanvasText } from '../components/ui/canvas-text';
 import {
   useAnalyzeRepoMutation,
@@ -60,6 +62,22 @@ export default function HomePage() {
     (analyzeMutation.isPending && analyzeMutation.variables === fullName) ||
     (isNavigating && navFor === fullName);
   const analyzeBusy = analyzeMutation.isPending || isNavigating;
+
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  // Force a rebuild past both the client cache and the server-side Redis cache.
+  async function refreshRepos() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const fresh = await listRepos(true);
+      queryClient.setQueryData<Repo[]>(['repos'], fresh);
+    } catch {
+      // A failed manual refresh keeps the existing list — nothing to surface.
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const stats = useMemo(() => {
     const list = repos ?? [];
@@ -211,7 +229,7 @@ export default function HomePage() {
               tone="green"
             />
             <StatCard
-              icon={<Loader2 size={18} aria-hidden="true" />}
+              icon={<Clock size={18} aria-hidden="true" />}
               label="In progress"
               value={stats.running}
               tone="amber"
@@ -226,9 +244,9 @@ export default function HomePage() {
             <ConnectGithubCard />
           </div>
         ) : (
-          /* Linked — paste panel beside the repo list. */
-          <div className="dash-grid">
-            <AnalyzePublicRepo />
+          /* Linked — slim paste bar on top, repo grid uses the full width below. */
+          <>
+            <AnalyzePublicRepo variant="bar" />
             <section className="dash-repos-panel">
               <>
         {analyzeMutation.isError && (
@@ -241,15 +259,32 @@ export default function HomePage() {
 
         <div className="dash-list-head">
           <h2 className="dash-section-title">Your repositories</h2>
-          <div className="dash-search">
-            <Search size={16} aria-hidden="true" />
-            <input
-              type="text"
-              placeholder="Search repositories…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search repositories"
-            />
+          <div className="dash-list-tools">
+            <button
+              type="button"
+              className="dash-refresh"
+              onClick={refreshRepos}
+              disabled={refreshing || reposLoading}
+              aria-busy={refreshing}
+              title="Fetch the latest repositories from GitHub"
+            >
+              <RotateCw
+                size={15}
+                aria-hidden="true"
+                className={refreshing ? 'animate-spin' : undefined}
+              />
+              <span>{refreshing ? 'Refreshing…' : 'Refresh'}</span>
+            </button>
+            <div className="dash-search">
+              <Search size={16} aria-hidden="true" />
+              <input
+                type="text"
+                placeholder="Search repositories…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search repositories"
+              />
+            </div>
           </div>
         </div>
 
@@ -345,7 +380,7 @@ export default function HomePage() {
         )}
               </>
             </section>
-          </div>
+          </>
         )}
       </main>
     </div>

@@ -40,38 +40,38 @@ function Kpi({
   const styles = TONE_STYLES[tone];
 
   const body = (
-    <>
+    <div className="flex items-center gap-3.5 w-full">
       <span
         className={cn(
-          'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+          'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105',
           styles.icon,
         )}
         aria-hidden="true"
       >
         {icon}
       </span>
-      <span className="min-w-0">
-        <span className="block truncate text-xs text-muted">{label}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium text-muted font-poppins">{label}</span>
         <span
           className={cn(
-            'block text-xl font-semibold tabular-nums leading-tight',
+            'block text-2xl font-bold font-poppins tabular-nums leading-snug tracking-tight mt-0.5',
             styles.value,
           )}
         >
           {value}
         </span>
-        <span className="block truncate text-xs text-muted">{detail}</span>
+        <span className="block truncate text-xs text-muted/80 font-poppins mt-0.5">{detail}</span>
       </span>
-    </>
+    </div>
   );
 
   const className =
-    'flex items-center gap-3 rounded-2xl border border-line bg-surface/50 p-4 backdrop-blur-sm transition-colors';
+    'group flex h-full items-center rounded-2xl border border-line bg-surface/50 p-4.5 backdrop-blur-md transition-all duration-200 hover:border-line-strong hover:bg-surface/75 hover:shadow-md hover:-translate-y-0.5';
 
   return href ? (
     <a
       href={href}
-      className={cn(className, 'no-underline hover:border-line-strong')}
+      className={cn(className, 'no-underline')}
     >
       {body}
     </a>
@@ -106,7 +106,7 @@ export function KpiRow({
   const band = score === undefined ? null : healthBand(score);
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-5">
       <Kpi
         icon={<Gauge size={17} />}
         label="Health score"

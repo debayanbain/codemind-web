@@ -11,9 +11,18 @@ import { parseGithubRepo } from '../../lib/github-url';
  * Paste-any-public-repo entry point. Works with no linked GitHub — the backend
  * downloads public repos unauthenticated. Parses a pasted URL (or `owner/repo`
  * shorthand) into the `owner/repo` the analyze endpoint expects, then navigates
- * to the new job. Always shown on the dashboard, beside the repo list.
+ * to the new job. Always shown on the dashboard.
+ *
+ * Two layouts: the default vertical `panel` (stacked above the Connect card
+ * when GitHub isn't linked) and a slim horizontal `bar` that sits full-width
+ * above the repo grid when linked, so the grid keeps the whole page width.
  */
-export function AnalyzePublicRepo() {
+export function AnalyzePublicRepo({
+  variant = 'panel',
+}: {
+  variant?: 'panel' | 'bar';
+}) {
+  const bar = variant === 'bar';
   const router = useRouter();
   const analyze = useAnalyzeRepoMutation();
   // Keep the button loading through the route change, not just the POST — the
@@ -43,18 +52,23 @@ export function AnalyzePublicRepo() {
   }
 
   return (
-    <section className="analyze-panel" aria-labelledby="analyze-title">
+    <section
+      className={bar ? 'analyze-panel analyze-bar' : 'analyze-panel'}
+      aria-labelledby="analyze-title"
+    >
       <div className="analyze-head">
         <span className="analyze-icon" aria-hidden="true">
           <GitBranch size={20} />
         </span>
-        <h2 id="analyze-title" className="analyze-title">
-          Analyze any public repo
-        </h2>
+        <div className="analyze-head-text">
+          <h2 id="analyze-title" className="analyze-title">
+            Analyze any public repo
+          </h2>
+          <p className="analyze-text">
+            Paste a public GitHub repository URL — no account connection needed.
+          </p>
+        </div>
       </div>
-      <p className="analyze-text">
-        Paste a public GitHub repository URL — no account connection needed.
-      </p>
 
       <form className="analyze-form" onSubmit={submit}>
         <input

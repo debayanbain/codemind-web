@@ -51,7 +51,7 @@ export function SectionNav({ sections }: { sections: NavSection[] }) {
   const active = useActiveSection(sections.map((s) => s.id));
 
   return (
-    <nav aria-label="Report sections" className="lg:sticky lg:top-24">
+    <nav aria-label="Report sections" className="lg:sticky lg:top-20 z-20">
       {/* Mobile: a horizontally scrollable chip rail. Desktop: a rail of rows. */}
       <ul className="m-0 flex list-none gap-1.5 overflow-x-auto p-0 lg:flex-col lg:overflow-visible">
         {sections.map((section) => {
@@ -62,15 +62,27 @@ export function SectionNav({ sections }: { sections: NavSection[] }) {
                 href={`#${section.id}`}
                 aria-current={isActive ? 'location' : undefined}
                 className={cn(
-                  'flex items-center justify-between gap-3 whitespace-nowrap rounded-lg border px-3 py-2 text-sm no-underline transition-colors',
+                  'flex items-center justify-between gap-3 whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-sm font-poppins no-underline transition-all duration-150',
                   isActive
-                    ? 'border-line-strong bg-surface text-fg'
-                    : 'border-transparent text-muted hover:bg-surface/60 hover:text-fg',
+                    ? 'border-glow-blue/40 bg-surface-2/90 text-fg font-medium shadow-sm translate-x-0.5'
+                    : 'border-transparent text-muted hover:bg-surface-2/50 hover:text-fg',
                 )}
               >
-                {section.label}
+                <span className="flex items-center gap-2">
+                  {isActive && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-glow-blue" />
+                  )}
+                  {section.label}
+                </span>
                 {section.badge && (
-                  <span className="font-mono text-xs tabular-nums text-muted">
+                  <span
+                    className={cn(
+                      'font-mono text-xs tabular-nums px-1.5 py-0.5 rounded-md',
+                      isActive
+                        ? 'bg-glow-blue/15 text-glow-blue font-medium'
+                        : 'bg-surface-2 text-muted',
+                    )}
+                  >
                     {section.badge}
                   </span>
                 )}

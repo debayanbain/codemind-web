@@ -58,15 +58,26 @@ export function DashboardSkeleton() {
             />
           </div>
 
-          <div className="dash-grid">
-            <Skeleton height={230} radius={18} />
-            <div className="dash-repos-panel">
-              <ul className="repo-list">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <RepoCardSkeleton key={i} />
-                ))}
-              </ul>
-            </div>
+          <div className="dash-stats">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} height={82} radius={16} />
+            ))}
+          </div>
+
+          {/* Slim paste bar, then the full-width repo grid — matches the real
+              linked layout so nothing shifts when data lands. */}
+          <Skeleton
+            height={72}
+            radius={18}
+            style={{ marginBottom: '2rem' }}
+          />
+
+          <div className="dash-repos-panel">
+            <ul className="repo-list">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <RepoCardSkeleton key={i} />
+              ))}
+            </ul>
           </div>
         </main>
       </SkeletonScreen>

@@ -44,8 +44,10 @@ export function TextBlurFade({
   }
 
   return (
+    /* Normal inline flow, not flex: whitespace-only flex items are dropped by
+       the flex layout algorithm, which glues every word together. */
     <motion.span
-      className="inline-flex flex-wrap justify-center"
+      className="inline"
       variants={container}
       initial="hidden"
       animate="visible"

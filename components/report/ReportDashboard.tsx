@@ -17,6 +17,14 @@ import {
   SecuritySection,
   SummarySection,
 } from './sections';
+import {
+  ApiSurfaceSection,
+  FindingsRegisterSection,
+  MeasuredSection,
+  RunRecordSection,
+  SECTION_IDS_MEASURED,
+  SystemFlowSection,
+} from './measured';
 
 export function ReportDashboard({
   report,
@@ -35,32 +43,79 @@ export function ReportDashboard({
   const reduceMotion = useReducedMotion();
   const outputs = useMemo(() => agentOutputs(agentResults), [agentResults]);
 
-  const sections: NavSection[] = useMemo(() => {
+  const hasFacts = !!report.facts;
+  const hasRoutes = (report.facts?.routes?.length ?? 0) > 0;
+  const hasRunRecord = agentResults.length > 0;
+
+  // One ordered list of every section that will actually render, so the nav,
+  // the numbering and the body can't disagree about what section 7 is. Cards
+  // that would render null (no facts, no routes) are dropped here too, so their
+  // number is never assigned.
+  const layout = useMemo(() => {
     const vulns = outputs.security?.vulnerabilities?.length ?? 0;
     const issues = outputs.quality?.issues?.length ?? 0;
     const outdated = outputs.dependency?.outdated_risks?.length ?? 0;
-    return [
-      { id: SECTION_IDS.summary, label: 'Summary' },
-      { id: SECTION_IDS.architecture, label: 'Architecture' },
-      {
-        id: SECTION_IDS.security,
-        label: 'Security',
-        badge: vulns ? `${vulns}` : undefined,
-      },
-      {
-        id: SECTION_IDS.dependencies,
-        label: 'Dependencies',
-        badge: outdated ? `${outdated}` : undefined,
-      },
-      {
-        id: SECTION_IDS.quality,
-        label: 'Quality',
-        badge: issues ? `${issues}` : undefined,
-      },
-      { id: SECTION_IDS.docs, label: 'Docs' },
-      { id: SECTION_IDS.recommendations, label: 'Recommendations' },
-    ];
-  }, [outputs]);
+    const findingsCount = vulns + issues + outdated;
+
+    const items: (NavSection & { key: string })[] = [];
+    const add = (
+      show: boolean,
+      key: string,
+      id: string,
+      label: string,
+      badge?: string,
+    ) => {
+      if (show) items.push({ key, id, label, badge });
+    };
+
+    add(hasFacts, 'measured', SECTION_IDS_MEASURED.measured, 'At a glance');
+    add(true, 'summary', SECTION_IDS.summary, 'Summary');
+    add(hasFacts, 'systemFlow', SECTION_IDS_MEASURED.systemFlow, 'How it runs');
+    add(true, 'architecture', SECTION_IDS.architecture, 'Architecture');
+    add(hasRoutes, 'api', SECTION_IDS_MEASURED.api, 'API surface');
+    add(
+      true,
+      'security',
+      SECTION_IDS.security,
+      'Security',
+      vulns ? `${vulns}` : undefined,
+    );
+    add(
+      true,
+      'dependencies',
+      SECTION_IDS.dependencies,
+      'Dependencies',
+      outdated ? `${outdated}` : undefined,
+    );
+    add(
+      true,
+      'quality',
+      SECTION_IDS.quality,
+      'Quality',
+      issues ? `${issues}` : undefined,
+    );
+    add(true, 'docs', SECTION_IDS.docs, 'Docs');
+    add(
+      true,
+      'findings',
+      SECTION_IDS_MEASURED.findings,
+      'Findings',
+      findingsCount ? `${findingsCount}` : undefined,
+    );
+    add(
+      true,
+      'recommendations',
+      SECTION_IDS.recommendations,
+      'Recommendations',
+    );
+    add(hasRunRecord, 'runRecord', SECTION_IDS_MEASURED.runRecord, 'Run record');
+    return items;
+  }, [outputs, hasFacts, hasRoutes, hasRunRecord]);
+
+  const sections: NavSection[] = layout;
+  // A section's display number is its position in the rendered layout.
+  const numberOf = (key: string): number =>
+    layout.findIndex((s) => s.key === key) + 1;
 
   // Sections resolve from blur one after another (capped so below-the-fold
   // content isn't held hostage to a long stagger queue).
@@ -98,27 +153,91 @@ export function ReportDashboard({
           <SectionNav sections={sections} />
 
           <div className="grid min-w-0 gap-6">
+            {hasFacts && (
+              <motion.div {...reveal(0)}>
+                <MeasuredSection
+                  outputs={outputs}
+                  report={report}
+                  index={numberOf('measured')}
+                />
+              </motion.div>
+            )}
             <motion.div {...reveal(1)}>
-              <SummarySection outputs={outputs} report={report} />
+              <SummarySection
+                outputs={outputs}
+                report={report}
+                index={numberOf('summary')}
+              />
             </motion.div>
+            {hasFacts && (
+              <motion.div {...reveal(2)}>
+                <SystemFlowSection
+                  report={report}
+                  index={numberOf('systemFlow')}
+                />
+              </motion.div>
+            )}
             <motion.div {...reveal(2)}>
-              <ArchitectureSection outputs={outputs} report={report} />
+              <ArchitectureSection
+                outputs={outputs}
+                report={report}
+                index={numberOf('architecture')}
+              />
             </motion.div>
+            {hasRoutes && (
+              <motion.div {...reveal(3)}>
+                <ApiSurfaceSection
+                  outputs={outputs}
+                  report={report}
+                  index={numberOf('api')}
+                />
+              </motion.div>
+            )}
             <motion.div {...reveal(3)}>
-              <SecuritySection outputs={outputs} report={report} />
+              <SecuritySection
+                outputs={outputs}
+                report={report}
+                index={numberOf('security')}
+              />
             </motion.div>
             <motion.div {...reveal(4)}>
-              <DependencySection outputs={outputs} report={report} />
+              <DependencySection
+                outputs={outputs}
+                report={report}
+                index={numberOf('dependencies')}
+              />
             </motion.div>
             <motion.div {...reveal(5)}>
-              <QualitySection outputs={outputs} report={report} />
+              <QualitySection
+                outputs={outputs}
+                report={report}
+                index={numberOf('quality')}
+              />
             </motion.div>
             <motion.div {...reveal(6)}>
-              <DocsSection outputs={outputs} />
+              <DocsSection outputs={outputs} index={numberOf('docs')} />
+            </motion.div>
+            <motion.div {...reveal(6)}>
+              <FindingsRegisterSection
+                outputs={outputs}
+                index={numberOf('findings')}
+              />
             </motion.div>
             <motion.div {...reveal(7)}>
-              <RecommendationsSection report={report} />
+              <RecommendationsSection
+                report={report}
+                index={numberOf('recommendations')}
+              />
             </motion.div>
+            {hasRunRecord && (
+              <motion.div {...reveal(7)}>
+                <RunRecordSection
+                  report={report}
+                  agentRuns={agentResults}
+                  index={numberOf('runRecord')}
+                />
+              </motion.div>
+            )}
           </div>
         </div>
 

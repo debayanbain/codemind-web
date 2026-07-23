@@ -47,13 +47,13 @@ export function PipelineGraph() {
             <span className="h-3 w-3 rounded-full bg-[#ffbd44]/85" />
             <span className="h-3 w-3 rounded-full bg-[#00ca4e]/85" />
           </div>
-          <div className="flex items-center gap-1.5 text-muted">
-            <Terminal size={12} className="text-glow-blue" />
-            <span className="font-mono text-[11px] tracking-wide">
+          <div className="flex min-w-0 items-center gap-1.5 text-muted">
+            <Terminal size={12} className="shrink-0 text-glow-blue" />
+            <span className="truncate font-mono text-[11px] tracking-wide">
               codemind-orchestrator.json
             </span>
           </div>
-          <div className="ml-auto flex items-center gap-1.5 rounded-full border border-glow-green/25 bg-glow-green/10 px-2.5 py-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-glow-green/25 bg-glow-green/10 px-2.5 py-1">
             <Sparkles size={11} className="text-glow-green" />
             <span className="font-mono text-[10.5px] font-medium tracking-wide text-glow-green">
               5 agents online
@@ -65,7 +65,14 @@ export function PipelineGraph() {
         <div className="relative px-5 py-6 md:px-8">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-size-[22px_22px] [mask-image:radial-gradient(ellipse_75%_80%_at_50%_50%,black,transparent)]" />
 
-          <svg viewBox="0 0 810 340" fill="none" className="relative h-auto w-full">
+          {/* Below ~600px the viewBox scales node labels down to ~5px, so the
+              graph scrolls inside its own panel instead of shrinking. */}
+          <div className="relative -mx-1 overflow-x-auto px-1 sm:mx-0 sm:overflow-visible sm:px-0">
+          <svg
+            viewBox="0 0 810 340"
+            fill="none"
+            className="relative h-auto w-full min-w-[560px] sm:min-w-0"
+          >
             {/* wires */}
             {AGENTS.map((agent, i) => (
               <g key={agent.name}>
@@ -197,10 +204,11 @@ export function PipelineGraph() {
               <rect x="648" y="186" width="88" height="4" rx="2" fill="rgba(255,255,255,0.09)" />
             </motion.g>
           </svg>
+          </div>
         </div>
 
         {/* Status bar */}
-        <div className="flex items-center gap-4 border-t border-white/8 bg-white/2 px-4 py-2.5 font-mono text-[10.5px] text-muted">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/8 bg-white/2 px-4 py-2.5 font-mono text-[10.5px] text-muted">
           <span className="flex items-center gap-1.5">
             <Terminal size={11} className="text-glow-blue" />
             branch: main

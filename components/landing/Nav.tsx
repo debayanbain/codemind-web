@@ -49,10 +49,12 @@ function DesktopNav({ visible, loginUrl }: { visible: boolean; loginUrl: string 
         y: visible ? 12 : 0,
       }}
       transition={{ type: 'spring', stiffness: 200, damping: 50 }}
-      style={{ minWidth: '820px' }}
+      /* min-width must never exceed the viewport, otherwise the pill forces a
+         horizontal scrollbar on small laptops / tablets. */
+      style={{ minWidth: 'min(820px, calc(100vw - 3rem))' }}
       className={cn(
-        'relative z-[60] mx-auto hidden max-w-[1160px] flex-row items-center justify-between gap-6',
-        'rounded-full border border-white/10 px-4 py-2 backdrop-blur-xl md:flex',
+        'relative z-[60] mx-auto hidden max-w-[min(1160px,calc(100vw-3rem))] flex-row items-center justify-between gap-6',
+        'rounded-full border border-white/10 px-4 py-2 backdrop-blur-xl lg:flex',
       )}
     >
       <a href="#top" className="relative z-20 inline-flex items-center no-underline">
@@ -61,7 +63,7 @@ function DesktopNav({ visible, loginUrl }: { visible: boolean; loginUrl: string 
 
       <nav
         onMouseLeave={() => setHovered(null)}
-        className="absolute inset-0 hidden flex-1 flex-row items-center justify-center gap-1 text-sm font-medium lg:flex"
+        className="absolute inset-0 flex flex-1 flex-row items-center justify-center gap-1 text-sm font-medium"
       >
         {NAV_ITEMS.map(([href, label], idx) => (
           <a
@@ -107,7 +109,7 @@ function MobileNav({ visible, loginUrl }: { visible: boolean; loginUrl: string }
       transition={{ type: 'spring', stiffness: 200, damping: 50 }}
       className={cn(
         'relative z-50 mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between',
-        'border border-white/10 px-4 py-2 backdrop-blur-xl md:hidden',
+        'border border-white/10 px-4 py-2 backdrop-blur-xl lg:hidden',
       )}
     >
       <div className="flex w-full flex-row items-center justify-between">
@@ -138,7 +140,7 @@ function MobileNav({ visible, loginUrl }: { visible: boolean; loginUrl: string }
                 key={href}
                 href={href}
                 onClick={() => setOpen(false)}
-                className="w-full rounded-lg px-3 py-2 text-sm text-muted no-underline transition-colors hover:bg-white/5 hover:text-fg"
+                className="flex min-h-11 w-full items-center rounded-lg px-3 py-2 text-sm text-muted no-underline transition-colors hover:bg-white/5 hover:text-fg"
               >
                 {label}
               </a>

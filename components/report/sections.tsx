@@ -27,11 +27,13 @@ import {
 } from '../../lib/report';
 import {
   Chip,
+  DataTable,
   DiagramFigure,
   EmptyState,
   FactRow,
   ReportCard,
   SeverityBadge,
+  Td,
 } from './primitives';
 
 /** Section ids double as the scroll anchors the nav and the KPI tiles link to. */
@@ -71,9 +73,11 @@ function BoolFact({ value }: { value: boolean | undefined }) {
 export function SummarySection({
   outputs,
   report,
+  index,
 }: {
   outputs: AgentOutputs;
   report: ReportPayload;
+  index?: number;
 }) {
   const synthesis = report.synthesis;
   const arch = outputs.architecture ?? {};
@@ -82,6 +86,7 @@ export function SummarySection({
   return (
     <ReportCard
       id={SECTION_IDS.summary}
+      index={index}
       title="Executive summary"
       icon={<Sparkles size={17} className="text-glow-blue" />}
       meta={
@@ -119,9 +124,11 @@ export function SummarySection({
 export function ArchitectureSection({
   outputs,
   report,
+  index,
 }: {
   outputs: AgentOutputs;
   report: ReportPayload;
+  index?: number;
 }) {
   const arch = outputs.architecture;
   const flows = matchingDiagrams(report, /^request-flow-\d+$/);
@@ -129,6 +136,7 @@ export function ArchitectureSection({
   return (
     <ReportCard
       id={SECTION_IDS.architecture}
+      index={index}
       title="Architecture"
       icon={<Layers size={17} className="text-glow-purple" />}
       meta={
@@ -253,9 +261,11 @@ const RISK_TO_SEVERITY: Record<string, Severity> = {
 export function SecuritySection({
   outputs,
   report,
+  index,
 }: {
   outputs: AgentOutputs;
   report: ReportPayload;
+  index?: number;
 }) {
   const sec = outputs.security;
   // Sorted, not filtered: a reader scanning top-down hits the criticals first.
@@ -265,6 +275,7 @@ export function SecuritySection({
   return (
     <ReportCard
       id={SECTION_IDS.security}
+      index={index}
       title="Security"
       icon={<ShieldAlert size={17} className="text-accent" />}
       meta={
@@ -401,9 +412,11 @@ export function SecuritySection({
 export function DependencySection({
   outputs,
   report,
+  index,
 }: {
   outputs: AgentOutputs;
   report: ReportPayload;
+  index?: number;
 }) {
   const dep = outputs.dependency;
   const outdated = dep?.outdated_risks ?? [];
@@ -413,6 +426,7 @@ export function DependencySection({
   return (
     <ReportCard
       id={SECTION_IDS.dependencies}
+      index={index}
       title="Dependencies"
       icon={<Boxes size={17} className="text-glow-teal" />}
       meta={
@@ -510,16 +524,20 @@ const SCORE_TONE = {
 export function QualitySection({
   outputs,
   report,
+  index,
 }: {
   outputs: AgentOutputs;
   report: ReportPayload;
+  index?: number;
 }) {
   const qual = outputs.quality;
+  const facts = report.facts;
   const issues = qual?.issues ?? [];
 
   return (
     <ReportCard
       id={SECTION_IDS.quality}
+      index={index}
       title="Code quality"
       icon={<SlidersHorizontal size={17} className="text-glow-amber" />}
       meta={<Chip tone="neutral">{issues.length} issues</Chip>}
@@ -589,7 +607,43 @@ export function QualitySection({
             </div>
           )}
 
-          {qual.complexity_hotspots?.length ? (
+          {/* Measured connectivity when we have it, ranked with the numbers
+              that justify the ranking — the callers/callees/depth come from
+              getNodeMetrics, so this is a fact and the old string list was a
+              guess. Falls back to the agent's list for older reports. */}
+          {facts?.complexityHotspots?.length ? (
+            <div>
+              <h3 className="mb-3 mt-0 text-sm font-medium text-fg">
+                Complexity hotspots
+              </h3>
+              <DataTable
+                minWidth="min-w-100"
+                columns={[
+                  { label: 'Symbol' },
+                  { label: 'Location' },
+                  { label: 'Callers', align: 'right' },
+                  { label: 'Calls', align: 'right' },
+                  { label: 'Depth', align: 'right' },
+                ]}
+              >
+                {facts.complexityHotspots.map((h) => (
+                  <tr key={`${h.file}-${h.symbol}-${h.line}`}>
+                    <Td>
+                      <CodeChip>{h.symbol}</CodeChip>
+                    </Td>
+                    <Td>
+                      <span className="font-mono text-xs break-all text-muted">
+                        {h.file}:{h.line}
+                      </span>
+                    </Td>
+                    <Td num>{h.callers}</Td>
+                    <Td num>{h.callees}</Td>
+                    <Td num>{h.depth}</Td>
+                  </tr>
+                ))}
+              </DataTable>
+            </div>
+          ) : qual.complexity_hotspots?.length ? (
             <div>
               <h3 className="mb-2 mt-0 text-sm font-medium text-fg">
                 Complexity hotspots
@@ -632,13 +686,20 @@ export function QualitySection({
 
 /* ── Docs ────────────────────────────────────────────────────────────────── */
 
-export function DocsSection({ outputs }: { outputs: AgentOutputs }) {
+export function DocsSection({
+  outputs,
+  index,
+}: {
+  outputs: AgentOutputs;
+  index?: number;
+}) {
   const docs = outputs.docs;
   const undocumented = docs?.undocumented_public_apis ?? [];
 
   return (
     <ReportCard
       id={SECTION_IDS.docs}
+      index={index}
       title="Documentation"
       icon={<BookText size={17} className="text-glow-blue" />}
       meta={
@@ -698,12 +759,19 @@ export function DocsSection({ outputs }: { outputs: AgentOutputs }) {
 
 /* ── Recommendations ─────────────────────────────────────────────────────── */
 
-export function RecommendationsSection({ report }: { report: ReportPayload }) {
+export function RecommendationsSection({
+  report,
+  index,
+}: {
+  report: ReportPayload;
+  index?: number;
+}) {
   const recommendations = report.synthesis?.recommendations ?? [];
 
   return (
     <ReportCard
       id={SECTION_IDS.recommendations}
+      index={index}
       title="Recommendations"
       icon={<ListChecks size={17} className="text-glow-green" />}
       meta={<Chip tone="neutral">Priority order</Chip>}

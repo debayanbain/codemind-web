@@ -34,6 +34,104 @@ export function matchingDiagrams(
   return report.diagrams.filter((d) => pattern.test(d.slug));
 }
 
+/* ── Findings register ────────────────────────────────────────────────────── */
+
+export interface Finding {
+  id: string;
+  severity: Severity;
+  area: 'Security' | 'Quality' | 'Dependencies';
+  title: string;
+  location: string;
+  detail: string;
+}
+
+/**
+ * Collapse every agent's findings into one ranked register with stable ids.
+ *
+ * **The reference implementation is `ReportRenderer#buildFindings` in the
+ * synthesizer** — this is deliberately the same algorithm so `SEC-01` on screen
+ * is `SEC-01` in the exported Markdown and in whatever recommendation cites it.
+ * Both read the same `agent_results` rows, so the ids agree as long as the two
+ * functions do; change one and change the other.
+ *
+ * The drop rule is the load-bearing part: a finding with no location cannot be
+ * checked, and an unverifiable row next to verifiable ones lowers the
+ * credibility of both.
+ */
+export function buildFindings(outputs: AgentOutputs): {
+  findings: Finding[];
+  unanchored: number;
+} {
+  const findings: Finding[] = [];
+  let unanchored = 0;
+
+  const loc = (raw: string | undefined | null): string | null => {
+    const trimmed = String(raw ?? '').trim();
+    return trimmed && trimmed.toLowerCase() !== 'unknown' ? trimmed : null;
+  };
+  const nextId = (prefix: string): string =>
+    `${prefix}-${String(
+      findings.filter((f) => f.id.startsWith(prefix)).length + 1,
+    ).padStart(2, '0')}`;
+
+  for (const v of outputs.security?.vulnerabilities ?? []) {
+    const location = loc(v.location);
+    if (!location) {
+      unanchored++;
+      continue;
+    }
+    findings.push({
+      id: nextId('SEC'),
+      severity: v.severity,
+      area: 'Security',
+      title: v.type,
+      location,
+      detail: v.description,
+    });
+  }
+
+  for (const issue of outputs.quality?.issues ?? []) {
+    const location = loc(issue.location);
+    if (!location) {
+      unanchored++;
+      continue;
+    }
+    findings.push({
+      id: nextId('QUA'),
+      // The quality agent grades nothing, so severity comes from what the
+      // category costs: a swallowed error bites in production, a duplicated
+      // helper bites a maintainer.
+      severity:
+        issue.category === 'error_handling' || issue.category === 'tests'
+          ? 'medium'
+          : 'low',
+      area: 'Quality',
+      title: issue.category.replace(/_/g, ' '),
+      location,
+      detail: issue.description,
+    });
+  }
+
+  for (const risk of outputs.dependency?.outdated_risks ?? []) {
+    const location = loc(risk.package);
+    if (!location) {
+      unanchored++;
+      continue;
+    }
+    findings.push({
+      id: nextId('DEP'),
+      severity: 'medium',
+      area: 'Dependencies',
+      title: 'At-risk package',
+      location,
+      detail: risk.reason,
+    });
+  }
+
+  findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  return { findings, unanchored };
+}
+
 export const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 0,
   high: 1,

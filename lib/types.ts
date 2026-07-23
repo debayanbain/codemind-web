@@ -213,6 +213,78 @@ export interface RenderedDiagram {
   degraded?: boolean;
 }
 
+/* ── Measured ground truth ────────────────────────────────────────────────── */
+
+/**
+ * The AST facts the report was built on. Mirrors `RepoFacts` in `@app/common`.
+ *
+ * Everything here came from parsing the repository, so none of it can be wrong
+ * the way a model can be wrong. The dashboard prefers it over the equivalent
+ * agent output wherever both exist — before this arrived, the web view rendered
+ * the agents' *guessed* complexity hotspots while the Markdown export rendered
+ * the measured ones, which made the richer surface the less trustworthy one.
+ *
+ * Every array is optional-safe at the call site: a report written by an older
+ * synthesizer has some of these absent.
+ */
+export interface RepoFacts {
+  runKey: string;
+  stats: {
+    files: number;
+    nodes: number;
+    edges: number;
+    linesOfCode: number;
+    sizeBytes: number;
+  };
+  languages: { language: string; files: number }[];
+  dominantLanguage: string | null;
+  frameworks: string[];
+  routes: {
+    url: string;
+    handler: string;
+    file: string;
+    line: number;
+    kind: string;
+  }[];
+  totalRoutes: number;
+  modules: {
+    name: string;
+    files: number;
+    linesOfCode: number;
+    sampleFiles: string[];
+    exports: string[];
+  }[];
+  moduleDependencies: { from: string; to: string; weight: number }[];
+  complexityHotspots: {
+    symbol: string;
+    file: string;
+    line: number;
+    callers: number;
+    callees: number;
+    depth: number;
+  }[];
+  circularDependencies: string[][];
+  deadCode: { symbol: string; file: string; line: number; kind: string }[];
+  callChains: {
+    name: string;
+    entryFile: string;
+    steps: { symbol: string; file: string; line: number }[];
+  }[];
+  externalImports: { module: string; package: string; count: number }[];
+  dependencies: { name: string; version: string; scope: 'runtime' | 'dev' }[];
+  entryPoints: {
+    kind: 'script' | 'main' | 'bin' | 'route' | 'component';
+    name: string;
+    detail: string;
+    file?: string;
+    line?: number;
+  }[];
+  testFiles: number;
+  docFiles: number;
+  largestFiles: { path: string; linesOfCode: number }[];
+  degraded: string[];
+}
+
 export interface ReportPayload {
   markdownContent: string;
   diagrams: RenderedDiagram[];
@@ -231,6 +303,12 @@ export interface ReportPayload {
   estimatedCostLabel?: string;
   /** The model `estimatedCostUsd` prices. */
   model?: string;
+  /**
+   * AST ground truth. Null for reports written before the column existed, and
+   * for runs whose facts aged out of Redis before synthesis — so every consumer
+   * must still render without it.
+   */
+  facts?: RepoFacts | null;
 }
 
 export interface Job {

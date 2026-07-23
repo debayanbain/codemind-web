@@ -9,12 +9,19 @@ import { cn } from '../../lib/utils';
 
 export function ReportCard({
   id,
+  index,
   title,
   icon,
   meta,
   children,
 }: {
   id?: string;
+  /**
+   * Section number. Rendered as a mono eyebrow above the title so the on-screen
+   * report is numbered the same way the Markdown export is — a reader can say
+   * "section 7" and mean one thing.
+   */
+  index?: number;
   title: string;
   icon?: ReactNode;
   meta?: ReactNode;
@@ -28,14 +35,88 @@ export function ReportCard({
       className="scroll-mt-24 rounded-2xl border border-line bg-surface/50 backdrop-blur-md overflow-hidden transition-all"
     >
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface-2/30 px-5 py-4 md:px-6">
-        <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold font-poppins tracking-tight text-fg">
-          {icon}
-          {title}
-        </h2>
+        <div className="min-w-0">
+          {index !== undefined && (
+            <span className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted tabular-nums">
+              {String(index).padStart(2, '0')} — {title}
+            </span>
+          )}
+          <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold font-poppins tracking-tight text-fg">
+            {icon}
+            {title}
+          </h2>
+        </div>
         {meta}
       </header>
       <div className="px-5 py-5 md:px-6 md:py-6">{children}</div>
     </section>
+  );
+}
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+
+/**
+ * The report's one table. Every section was hand-rolling the same thead/tbody
+ * with slightly different padding, which is how a document stops looking like
+ * one document.
+ *
+ * Horizontal scroll is on the wrapper, never the page: a wide route table must
+ * not make the whole report scroll sideways on a phone.
+ */
+export function DataTable({
+  columns,
+  children,
+  minWidth = 'min-w-120',
+}: {
+  columns: { label: string; align?: 'left' | 'right' }[];
+  children: ReactNode;
+  minWidth?: string;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className={cn('w-full border-collapse text-sm', minWidth)}>
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-muted">
+            {columns.map((c) => (
+              <th
+                key={c.label}
+                scope="col"
+                className={cn(
+                  'border-b border-line px-3 py-2 font-medium',
+                  c.align === 'right' && 'text-right',
+                )}
+              >
+                {c.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+/** A cell. `num` right-aligns and tabular-lines the figures so columns line up. */
+export function Td({
+  children,
+  num,
+  className,
+}: {
+  children: ReactNode;
+  num?: boolean;
+  className?: string;
+}) {
+  return (
+    <td
+      className={cn(
+        'border-b border-line px-3 py-2.5 align-top text-fg/80',
+        num && 'text-right font-mono tabular-nums text-fg',
+        className,
+      )}
+    >
+      {children}
+    </td>
   );
 }
 

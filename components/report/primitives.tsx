@@ -235,8 +235,14 @@ export function DiagramFigure({
 
   return (
     <figure className={cn('m-0 w-full', className)}>
+      {/* The SVG arrives at its natural size, which varies wildly: a four-box
+          module graph renders taller than the viewport while a donut stays
+          tiny, so a report full of them reads as inconsistent and unfinished.
+          `max-h` + `h-auto` on the child (see cm-diagram in globals.css) caps
+          the tall ones and lets narrow ones fill the width, so every figure
+          occupies a comparable, deliberate block. */}
       <div
-        className="cm-diagram w-full overflow-hidden rounded-xl border border-line bg-surface-2/40 p-4 sm:p-5 flex items-center justify-center"
+        className="cm-diagram flex max-h-[26rem] w-full items-center justify-center overflow-auto rounded-xl border border-line bg-surface-2/40 p-4 sm:p-5"
         // eslint-disable-next-line react/no-danger -- inert, server-rendered, server-sanitized SVG
         dangerouslySetInnerHTML={{ __html: diagram.svg }}
       />

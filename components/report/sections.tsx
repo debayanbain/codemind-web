@@ -81,7 +81,6 @@ export function SummarySection({
 }) {
   const synthesis = report.synthesis;
   const arch = outputs.architecture ?? {};
-  const gauge = findDiagram(report, 'health-gauge');
 
   return (
     <ReportCard
@@ -95,9 +94,11 @@ export function SummarySection({
         </Chip>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+      {/* No gauge here any more, so the prose gets the whole column, capped at
+          a readable 68ch measure. */}
+      <div className="grid gap-6">
         <div className="min-w-0">
-          <p className="m-0 text-base leading-relaxed font-poppins text-fg/90">
+          <p className="m-0 max-w-[68ch] text-base leading-relaxed font-poppins text-fg/90">
             {synthesis?.executiveSummary ??
               'This report predates structured synthesis. The full write-up is in the Markdown below.'}
           </p>
@@ -113,7 +114,6 @@ export function SummarySection({
             </FactRow>
           </dl>
         </div>
-        {gauge && <DiagramFigure diagram={gauge} className="lg:w-80 w-full shrink-0" />}
       </div>
     </ReportCard>
   );

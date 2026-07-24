@@ -147,17 +147,12 @@ export const QUALITY_CATEGORY_LABELS: Record<QualityCategory, string> = {
   tests: 'Tests',
 };
 
-export interface HealthBand {
-  label: string;
-  /** Token name, not a hex — the section components map it to a CSS variable. */
-  tone: 'green' | 'amber' | 'red';
-}
+// `HealthBand`/`healthBand` lived here. They banded a 0-100 score the synthesis
+// model invented in one pass — no formula, no inputs, not reproducible between
+// runs. It was the biggest number on the page and the only one that couldn't be
+// defended, which undercut the measured figures beside it. The findings register
+// and severity counts carry the same signal and can be checked.
 
-export function healthBand(score: number): HealthBand {
-  if (score >= 80) return { label: 'Healthy', tone: 'green' };
-  if (score >= 60) return { label: 'Needs attention', tone: 'amber' };
-  return { label: 'At risk', tone: 'red' };
-}
 
 /**
  * What a job cost, as reported by the API.

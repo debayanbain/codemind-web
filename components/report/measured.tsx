@@ -2,13 +2,15 @@
 
 import {
   Activity,
+  Boxes,
   ClipboardList,
   Gauge,
   Route as RouteIcon,
   Terminal,
 } from 'lucide-react';
 import type { AgentOutputs, ReportPayload } from '../../lib/types';
-import { buildFindings, findDiagram, healthBand } from '../../lib/report';
+import { buildFindings, findDiagram } from '../../lib/report';
+import { cn } from '../../lib/utils';
 import {
   Chip,
   DataTable,
@@ -62,9 +64,6 @@ export function MeasuredSection({
   if (!facts) return null;
 
   const { findings } = buildFindings(outputs);
-  const score = report.synthesis?.overallHealthScore ?? 0;
-  const band = healthBand(score);
-  const gauge = findDiagram(report, 'health-gauge');
 
   const measured: [string, string][] = [
     ['Files indexed', facts.stats.files.toLocaleString()],
@@ -92,12 +91,12 @@ export function MeasuredSection({
       title="At a glance"
       icon={<Gauge size={17} className="text-glow-blue" />}
       meta={
-        <Chip
-          tone={band.tone}
-        >{`${score}/100 · ${band.label}`}</Chip>
+        <Chip tone={critical > 0 ? 'red' : 'green'}>
+          {critical} critical/high
+        </Chip>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
+      <div className="grid gap-6">
         <div className="min-w-0 grid gap-5">
           <dl className="m-0 grid gap-x-8 gap-y-0 sm:grid-cols-2">
             {measured.map(([label, value]) => (
@@ -143,9 +142,6 @@ export function MeasuredSection({
           ) : null}
         </div>
 
-        {gauge && (
-          <DiagramFigure diagram={gauge} className="w-full shrink-0 lg:w-72" />
-        )}
       </div>
     </ReportCard>
   );
@@ -495,10 +491,134 @@ export function RunRecordSection({
   );
 }
 
+/* ── Component breakdown ─────────────────────────────────────────────────── */
+
+/**
+ * The file-by-file walk, grouped by module.
+ *
+ * Every value here is AST output — symbol names, kinds, lines, the author's own
+ * doc comments, and the import wiring. That is deliberate: this is exactly the
+ * section where a model would begin describing files it never opened, and at
+ * 100+ files it would cost more than the rest of the run.
+ */
+export function ComponentBreakdownSection({
+  report,
+  index,
+}: {
+  report: ReportPayload;
+  index?: number;
+}) {
+  const files = report.facts?.files ?? [];
+  if (files.length === 0) return null;
+
+  const total = report.facts?.totalIndexedFiles ?? files.length;
+  const byModule = new Map<string, typeof files>();
+  for (const f of files) {
+    const list = byModule.get(f.module);
+    if (list) list.push(f);
+    else byModule.set(f.module, [f]);
+  }
+
+  return (
+    <ReportCard
+      id={SECTION_IDS_MEASURED.components}
+      index={index}
+      title="Component breakdown"
+      icon={<Boxes size={17} className="text-glow-purple" />}
+      meta={
+        <Chip tone="neutral">
+          {files.length} of {total} files
+        </Chip>
+      }
+    >
+      <div className="grid gap-6">
+        <p className="m-0 text-xs leading-relaxed text-muted">
+          What each file defines and how it is wired in, for the most
+          load-bearing files — ranked by how many other files import them, not
+          alphabetically. Signatures and descriptions are the code&rsquo;s own.
+        </p>
+
+        {[...byModule.entries()].map(([module, moduleFiles]) => (
+          <div key={module} className="grid gap-3">
+            <h3 className="m-0 font-mono text-xs font-semibold uppercase tracking-wider text-muted">
+              {module}
+            </h3>
+
+            {moduleFiles.map((f) => (
+              <details
+                key={f.path}
+                className="rounded-xl border border-line bg-surface-2/40 px-4 py-3"
+              >
+                <summary className="cursor-pointer list-none">
+                  <span className="flex flex-wrap items-center justify-between gap-2">
+                    <code className="font-mono text-xs break-all text-fg">
+                      {f.path}
+                    </code>
+                    <span className="flex shrink-0 items-center gap-2 font-mono text-[11px] tabular-nums text-muted">
+                      <span>{f.linesOfCode} lines</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{f.importedBy} importers</span>
+                    </span>
+                  </span>
+                </summary>
+
+                <div className="mt-3">
+                  <DataTable
+                    minWidth="min-w-100"
+                    columns={[
+                      { label: 'Symbol' },
+                      { label: 'Kind' },
+                      { label: 'Line', align: 'right' },
+                      { label: 'Signature / description' },
+                    ]}
+                  >
+                    {f.symbols.map((sym) => (
+                      <tr key={`${sym.name}-${sym.line}`}>
+                        <Td>
+                          <code
+                            className={cn(
+                              'font-mono text-xs',
+                              sym.exported ? 'font-semibold text-fg' : 'text-muted',
+                            )}
+                          >
+                            {sym.name}
+                          </code>
+                        </Td>
+                        <Td>{sym.kind}</Td>
+                        <Td num>{sym.line}</Td>
+                        <Td>{sym.doc ?? sym.signature ?? '—'}</Td>
+                      </tr>
+                    ))}
+                  </DataTable>
+
+                  {f.imports.length > 0 && (
+                    <p className="m-0 mt-3 text-xs text-muted">
+                      Imports:{' '}
+                      {f.imports.map((i) => (
+                        <code
+                          key={i}
+                          className="mr-1.5 font-mono text-[11px] break-all"
+                        >
+                          {i}
+                        </code>
+                      ))}
+                    </p>
+                  )}
+                </div>
+              </details>
+            ))}
+          </div>
+        ))}
+      </div>
+    </ReportCard>
+  );
+}
+
 /** Anchors for the sections in this file. Merged into SECTION_IDS by the nav. */
 export const SECTION_IDS_MEASURED = {
   measured: 'measured',
   systemFlow: 'system-flow',
+  components: 'components',
   api: 'api-surface',
   findings: 'findings',
   runRecord: 'run-record',

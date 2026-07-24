@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import { GitBranch } from 'lucide-react';
 import type { JobStatus, Synthesis } from '../../lib/types';
-import { healthBand } from '../../lib/report';
 import { Chip } from './primitives';
 
 /**
@@ -26,9 +25,6 @@ export function ReportHeader({
   actions?: ReactNode;
   eyebrow?: ReactNode;
 }) {
-  const score = synthesis?.overallHealthScore;
-  const band = score === undefined ? null : healthBand(score);
-
   return (
     <header className="sticky top-0 z-30 -mx-4 sm:-mx-6 md:-mx-8 mb-6 border-b border-line bg-bg/85 px-4 sm:px-6 md:px-8 py-3.5 backdrop-blur-xl transition-all">
       {eyebrow}
@@ -51,11 +47,6 @@ export function ReportHeader({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {band && score !== undefined && (
-            <Chip tone={band.tone} className="tabular-nums font-poppins font-medium">
-              {score}/100 · {band.label}
-            </Chip>
-          )}
           <span className={`badge badge-${status}`}>{status}</span>
           {actions}
         </div>

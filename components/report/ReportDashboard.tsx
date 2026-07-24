@@ -19,6 +19,7 @@ import {
 } from './sections';
 import {
   ApiSurfaceSection,
+  ComponentBreakdownSection,
   FindingsRegisterSection,
   MeasuredSection,
   RunRecordSection,
@@ -45,6 +46,7 @@ export function ReportDashboard({
 
   const hasFacts = !!report.facts;
   const hasRoutes = (report.facts?.routes?.length ?? 0) > 0;
+  const hasFiles = (report.facts?.files?.length ?? 0) > 0;
   const hasRunRecord = agentResults.length > 0;
 
   // One ordered list of every section that will actually render, so the nav,
@@ -72,6 +74,15 @@ export function ReportDashboard({
     add(true, 'summary', SECTION_IDS.summary, 'Summary');
     add(hasFacts, 'systemFlow', SECTION_IDS_MEASURED.systemFlow, 'How it runs');
     add(true, 'architecture', SECTION_IDS.architecture, 'Architecture');
+    add(
+      hasFiles,
+      'components',
+      SECTION_IDS_MEASURED.components,
+      'Components',
+      report.facts?.files?.length
+        ? `${report.facts.files.length}`
+        : undefined,
+    );
     add(hasRoutes, 'api', SECTION_IDS_MEASURED.api, 'API surface');
     add(
       true,
@@ -110,7 +121,7 @@ export function ReportDashboard({
     );
     add(hasRunRecord, 'runRecord', SECTION_IDS_MEASURED.runRecord, 'Run record');
     return items;
-  }, [outputs, hasFacts, hasRoutes, hasRunRecord]);
+  }, [outputs, hasFacts, hasRoutes, hasFiles, hasRunRecord, report.facts]);
 
   const sections: NavSection[] = layout;
   // A section's display number is its position in the rendered layout.
@@ -184,6 +195,14 @@ export function ReportDashboard({
                 index={numberOf('architecture')}
               />
             </motion.div>
+            {hasFiles && (
+              <motion.div {...reveal(3)}>
+                <ComponentBreakdownSection
+                  report={report}
+                  index={numberOf('components')}
+                />
+              </motion.div>
+            )}
             {hasRoutes && (
               <motion.div {...reveal(3)}>
                 <ApiSurfaceSection

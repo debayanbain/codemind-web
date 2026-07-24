@@ -197,7 +197,6 @@ export interface AgentOutputs {
 export interface Synthesis {
   executiveSummary: string;
   recommendations: string[];
-  overallHealthScore: number;
 }
 
 /**
@@ -281,6 +280,25 @@ export interface RepoFacts {
   }[];
   testFiles: number;
   docFiles: number;
+  /** Per-file component breakdown, ranked by how load-bearing each file is. */
+  files?: {
+    path: string;
+    module: string;
+    linesOfCode: number;
+    language: string;
+    symbols: {
+      name: string;
+      kind: string;
+      line: number;
+      signature?: string;
+      doc?: string;
+      exported: boolean;
+    }[];
+    imports: string[];
+    importedBy: number;
+  }[];
+  /** Total indexed files, so a capped `files[]` never implies completeness. */
+  totalIndexedFiles?: number;
   largestFiles: { path: string; linesOfCode: number }[];
   degraded: string[];
 }

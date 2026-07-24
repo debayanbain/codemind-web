@@ -9,7 +9,6 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import type { AgentOutputs, Synthesis } from '../../lib/types';
-import { healthBand } from '../../lib/report';
 import { cn } from '../../lib/utils';
 
 type Tone = 'green' | 'amber' | 'red' | 'blue' | 'neutral';
@@ -102,19 +101,8 @@ export function KpiRow({
   const runtimeDeps = outputs.dependency?.runtime_dependencies ?? [];
   const docScore = outputs.docs?.doc_score;
 
-  const score = synthesis?.overallHealthScore;
-  const band = score === undefined ? null : healthBand(score);
-
   return (
-    <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-5">
-      <Kpi
-        icon={<Gauge size={17} />}
-        label="Health score"
-        value={score === undefined ? '—' : `${score}`}
-        detail={band?.label ?? 'Not scored'}
-        tone={band?.tone ?? 'neutral'}
-        href="#summary"
-      />
+    <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4">
       <Kpi
         icon={<ShieldAlert size={17} />}
         label="Critical + high vulns"

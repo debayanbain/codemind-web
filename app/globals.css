@@ -707,6 +707,13 @@ button:focus-visible {
   max-width: 100%;
   height: auto;
   margin-inline: auto;
+  /* Cap the tall ones. D2 emits each diagram at its natural size, so a module
+     graph of stacked boxes came out taller than the viewport while a donut
+     stayed small — the report read as inconsistent rather than composed. The
+     container clamps to max-h-[26rem]; this keeps the aspect ratio while
+     fitting inside it. */
+  max-height: 24rem;
+  width: auto;
 }
 
 /* Landing: Nav */
